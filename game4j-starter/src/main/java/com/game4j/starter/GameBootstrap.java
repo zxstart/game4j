@@ -95,7 +95,18 @@ public class GameBootstrap {
         clusterConfig.setGrpcPort(config.getClusterGrpcPort());
         clusterConfig.setSeedMembers(new ArrayList<>(config.getSeedMembers()));
 
-        ClusterManager.init(node, clusterConfig);
+        try {
+            ClusterManager.init(node, clusterConfig);
+        } catch (NoClassDefFoundError err) {
+            if (isGrpcClassMissing(err)) {
+                throw new IllegalStateException(
+                        "Cluster startup failed: missing gRPC runtime classes in classpath, " +
+                                "please ensure grpc-api/grpc-stub/grpc-netty-shaded are included.",
+                        err
+                );
+            }
+            throw err;
+        }
         Runtime.getRuntime().addShutdownHook(new Thread(ClusterManager::shutdown));
         log.info(
                 "Cluster node started, nodeId={}, role={}, hazelcastPort={}, grpcPort={}, seeds={}",
@@ -105,5 +116,10 @@ public class GameBootstrap {
                 node.getGrpcPort(),
                 Objects.toString(clusterConfig.getSeedMembers())
         );
+    }
+
+    private boolean isGrpcClassMissing(NoClassDefFoundError err) {
+        String msg = err.getMessage();
+        return msg != null && msg.startsWith("io/grpc/");
     }
 }

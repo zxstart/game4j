@@ -1,8 +1,8 @@
 package com.game4j.starter;
 
-import com.game4j.cluster.gossip.GossipManager;
-import com.game4j.cluster.gossip.GossipNode;
-import com.game4j.cluster.heartbeat.HeartbeatTask;
+import com.game4j.cluster.ClusterConfig;
+import com.game4j.cluster.ClusterManager;
+import com.game4j.cluster.hazelcast.ClusterNode;
 import com.game4j.netty.server.NettyServer;
 import com.game4j.starter.config.ServerConfig;
 import com.game4j.starter.initializer.ControllerInitializer;
@@ -10,6 +10,8 @@ import com.game4j.starter.initializer.PluginInitializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -19,7 +21,7 @@ import java.util.UUID;
  * 1. 加载插件
  * 2. 扫描并初始化控制器
  * 3. 启动 Netty 服务器
- * 4. 启动 Gossip 节点和心跳任务
+ * 4. 启动集群节点（Hazelcast + gRPC Gossip）
  * </p>
  */
 public class GameBootstrap {
@@ -43,7 +45,7 @@ public class GameBootstrap {
             initPlugin();
             initController();
             startNetty();
-            startGossipNode();
+            startClusterNode();
             log.info("Game Server Started");
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -68,15 +70,40 @@ public class GameBootstrap {
         server.start(config.getPort());
     }
 
-    private void startGossipNode() {
-        // 示例：启动 Gossip 节点
-        // 实际生产中，这些配置应该来自配置文件
-        GossipNode node = new GossipNode(
-                UUID.randomUUID().toString(),
-                "127.0.0.1",
-                9000
+    private void startClusterNode() {
+        if (!config.isClusterEnabled()) {
+            log.info("Cluster disabled by config");
+            return;
+        }
+
+        String nodeId = config.getClusterNodeId();
+        if (nodeId == null || nodeId.isBlank()) {
+            nodeId = UUID.randomUUID().toString();
+        }
+
+        ClusterNode node = new ClusterNode(
+                nodeId,
+                config.getClusterNodeType(),
+                config.getClusterHost(),
+                config.getHazelcastPort(),
+                config.getClusterGrpcPort()
         );
-        GossipManager.init(node);
-        HeartbeatTask.start();
+
+        ClusterConfig clusterConfig = ClusterConfig.defaults();
+        clusterConfig.setClusterName(config.getClusterName());
+        clusterConfig.setHazelcastPort(config.getHazelcastPort());
+        clusterConfig.setGrpcPort(config.getClusterGrpcPort());
+        clusterConfig.setSeedMembers(new ArrayList<>(config.getSeedMembers()));
+
+        ClusterManager.init(node, clusterConfig);
+        Runtime.getRuntime().addShutdownHook(new Thread(ClusterManager::shutdown));
+        log.info(
+                "Cluster node started, nodeId={}, role={}, hazelcastPort={}, grpcPort={}, seeds={}",
+                node.getNodeId(),
+                node.getNodeType(),
+                node.getPort(),
+                node.getGrpcPort(),
+                Objects.toString(clusterConfig.getSeedMembers())
+        );
     }
 }

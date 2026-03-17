@@ -10,8 +10,20 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 
+/**
+ * Netty 服务端
+ * <p>
+ * 负责启动 Netty 服务，配置 ChannelPipeline。
+ * </p>
+ */
 public class NettyServer {
 
+    /**
+     * 启动服务器
+     * 
+     * @param port 监听端口
+     * @throws Exception 启动异常
+     */
     public void start(int port) throws Exception {
 
         EventLoopGroup boss = new NioEventLoopGroup(1);

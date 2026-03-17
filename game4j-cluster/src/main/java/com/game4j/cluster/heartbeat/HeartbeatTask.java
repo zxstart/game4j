@@ -10,6 +10,12 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * 心跳任务
+ * <p>
+ * 定期检查集群中节点的状态，并触发 Gossip 协议进行状态同步。
+ * </p>
+ */
 public class HeartbeatTask {
     private static final Logger log = LoggerFactory.getLogger(HeartbeatTask.class);
 
@@ -17,6 +23,9 @@ public class HeartbeatTask {
 
     private static final long TIMEOUT = 10000;
 
+    /**
+     * 启动心跳任务
+     */
     public static void start() {
         scheduler.scheduleAtFixedRate(() -> {
             checkNodes();
@@ -25,6 +34,9 @@ public class HeartbeatTask {
 
     }
 
+    /**
+     * 检查节点是否超时离线
+     */
     private static void checkNodes() {
         long now = System.currentTimeMillis();
         for (GossipNode node : NodeRegistry.getNodes()) {
@@ -35,6 +47,9 @@ public class HeartbeatTask {
         }
     }
 
+    /**
+     * 执行 Gossip 协议同步
+     */
     private static void gossip() {
         GossipNode randomNode =
                 GossipManager.randomNode();

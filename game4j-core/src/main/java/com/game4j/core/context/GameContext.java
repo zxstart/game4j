@@ -4,15 +4,30 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * 游戏上下文环境
+ * <p>
+ * 用于管理全局的单例 Bean 实例，提供依赖注入和获取功能。
+ * 类似于 Spring 的 ApplicationContext，但更轻量级。
+ * </p>
+ */
 public class GameContext {
 
+    /**
+     * 存储所有注册的 Bean 实例
+     */
     private static final Map<Class<?>, Object> BEANS = new ConcurrentHashMap<>();
 
     /**
      * 注册 Bean
-     * 优化点 1: 解耦泛型 T，允许 Class<?> 和 Object 传入，解决调用时的类型推断问题
-     * 优化点 2: 增加参数校验
-     * 优化点 3: 增加重复注册检测
+     * <p>
+     * 将一个实例注册到上下文中。
+     * </p>
+     * 
+     * @param clazz Bean 的类型
+     * @param instance Bean 的实例
+     * @throws IllegalArgumentException 如果参数为空或类型不匹配
+     * @throws IllegalStateException 如果该类型的 Bean 已经注册
      */
     public static void registerBean(Class<?> clazz, Object instance) {
         if (clazz == null) {
@@ -41,7 +56,15 @@ public class GameContext {
 
     /**
      * 获取 Bean
-     * 保持泛型，方便调用者直接使用，无需强转
+     * <p>
+     * 根据类型获取已注册的 Bean 实例。
+     * </p>
+     * 
+     * @param clazz Bean 的类型
+     * @param <T> Bean 的泛型类型
+     * @return Bean 实例
+     * @throws IllegalArgumentException 如果 clazz 为 null
+     * @throws IllegalStateException 如果找不到对应类型的 Bean
      */
     @SuppressWarnings("unchecked")
     public static <T> T getBean(Class<T> clazz) {
@@ -56,7 +79,14 @@ public class GameContext {
     }
 
     /**
-     * 尝试获取 Bean，如果没有则返回 null (避免抛异常)
+     * 尝试获取 Bean，如果没有则返回 null
+     * <p>
+     * 安全的获取方式，不会抛出异常。
+     * </p>
+     * 
+     * @param clazz Bean 的类型
+     * @param <T> Bean 的泛型类型
+     * @return Bean 实例，如果不存在则返回 null
      */
     @SuppressWarnings("unchecked")
     public static <T> T getBeanNullable(Class<T> clazz) {
@@ -66,19 +96,32 @@ public class GameContext {
 
     /**
      * 检查是否包含某个 Bean
+     * 
+     * @param clazz Bean 的类型
+     * @return 如果包含则返回 true，否则返回 false
      */
     public static boolean containsBean(Class<?> clazz) {
         return clazz != null && BEANS.containsKey(clazz);
     }
 
     /**
-     * 获取所有已注册的 Bean (返回只读视图，防止外部修改)
+     * 获取所有已注册的 Bean
+     * <p>
+     * 返回一个只读的 Map 视图，防止外部修改内部状态。
+     * </p>
+     * 
+     * @return 包含所有 Bean 的 Map
      */
     public static Map<Class<?>, Object> getAllBeans() {
         return Collections.unmodifiableMap(BEANS);
     }
 
-    // 清空容器 (用于测试或热重载)
+    /**
+     * 清空容器
+     * <p>
+     * 清除所有注册的 Bean，通常用于测试或热重载场景。
+     * </p>
+     */
     public static void clear() {
         BEANS.clear();
     }

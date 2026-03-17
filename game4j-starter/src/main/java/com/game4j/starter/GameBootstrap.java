@@ -12,6 +12,16 @@ import org.slf4j.LoggerFactory;
 
 import java.util.UUID;
 
+/**
+ * 游戏服务器启动引导类
+ * <p>
+ * 负责整个游戏服务器的初始化和启动流程，包括：
+ * 1. 加载插件
+ * 2. 扫描并初始化控制器
+ * 3. 启动 Netty 服务器
+ * 4. 启动 Gossip 节点和心跳任务
+ * </p>
+ */
 public class GameBootstrap {
     private static final Logger log = LoggerFactory.getLogger(GameBootstrap.class);
     private final ServerConfig config;
@@ -24,6 +34,9 @@ public class GameBootstrap {
         this.config = config;
     }
 
+    /**
+     * 启动服务器
+     */
     public void start() {
         try {
             log.info("Game Server Starting...");
@@ -56,6 +69,8 @@ public class GameBootstrap {
     }
 
     private void startGossipNode() {
+        // 示例：启动 Gossip 节点
+        // 实际生产中，这些配置应该来自配置文件
         GossipNode node = new GossipNode(
                 UUID.randomUUID().toString(),
                 "127.0.0.1",

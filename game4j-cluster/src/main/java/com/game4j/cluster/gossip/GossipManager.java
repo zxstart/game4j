@@ -8,6 +8,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
+/**
+ * Gossip 协议管理器
+ * <p>
+ * 负责管理 Gossip 节点的状态，包括初始化、加入集群、随机选择节点和合并节点信息。
+ * </p>
+ */
 public class GossipManager {
 
     private static final Logger log =
@@ -17,6 +23,11 @@ public class GossipManager {
 
     private static final Random random = new Random();
 
+    /**
+     * 初始化本地节点
+     * 
+     * @param node 本地节点信息
+     */
     public static void init(GossipNode node) {
 
         localNode = node;
@@ -30,6 +41,11 @@ public class GossipManager {
         return localNode;
     }
 
+    /**
+     * 加入集群
+     * 
+     * @param node 目标节点
+     */
     public static void join(GossipNode node) {
 
         NodeRegistry.register(node);
@@ -37,6 +53,11 @@ public class GossipManager {
         log.info("Node join cluster : {}", node.getNodeId());
     }
 
+    /**
+     * 随机选择一个节点
+     * 
+     * @return 随机选中的节点，如果列表为空则返回 null
+     */
     public static GossipNode randomNode() {
 
         List<GossipNode> list =
@@ -49,6 +70,15 @@ public class GossipManager {
         return list.get(random.nextInt(list.size()));
     }
 
+    /**
+     * 合并节点列表
+     * <p>
+     * 将接收到的节点列表合并到本地注册表中。
+     * 如果是新节点则注册，如果是已知节点则更新心跳时间。
+     * </p>
+     * 
+     * @param nodes 接收到的节点列表
+     */
     public static void merge(List<GossipNode> nodes) {
 
         for (GossipNode node : nodes) {

@@ -27,5 +27,17 @@
             <groupId>com.game4j</groupId>
             <artifactId>game4j-netty</artifactId>
         </dependency>
+
+        <!-- jprotobuf -->
+        <dependency>
+            <groupId>com.baidu</groupId>
+            <artifactId>jprotobuf</artifactId>
+        </dependency>
+
+        <!-- Hazelcast -->
+        <dependency>
+            <groupId>com.hazelcast</groupId>
+            <artifactId>hazelcast</artifactId>
+        </dependency>
     </dependencies>
 </project>

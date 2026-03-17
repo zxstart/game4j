@@ -1,7 +1,7 @@
 package com.game4j.core.dispatcher;
 
-import com.game4j.core.annotation.GameRequestBody;
-import com.game4j.core.annotation.GameRoute;
+import com.game4j.core.annotation.G4JRequestBody;
+import com.game4j.core.annotation.G4JRoute;
 import com.game4j.core.reflection.MethodHandleFactory;
 
 import java.lang.invoke.MethodHandle;
@@ -10,7 +10,7 @@ import java.lang.reflect.Parameter;
 
 public class RouteBuilder {
     public static RouteDefinition build(Object controller, Method method) {
-        GameRoute route = method.getAnnotation(GameRoute.class);
+        G4JRoute route = method.getAnnotation(G4JRoute.class);
         if (route == null) {
             return null;
         }
@@ -21,7 +21,7 @@ public class RouteBuilder {
                 MethodHandleFactory.create(controller, method);
         def.setMethodHandle(handle);
         for (Parameter parameter : method.getParameters()) {
-            if (parameter.isAnnotationPresent(GameRequestBody.class)) {
+            if (parameter.isAnnotationPresent(G4JRequestBody.class)) {
                 def.setBodyType(parameter.getType());
             }
         }

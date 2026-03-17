@@ -2,11 +2,10 @@ package com.game4j.core.annotation;
 
 import java.lang.annotation.*;
 
-@Target(ElementType.METHOD)
+@Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
-public @interface GameRoute {
+public @interface G4JController {
 
-    int cmd();
-
+    String value() default "";
 }

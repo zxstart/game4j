@@ -1,11 +1,16 @@
 package com.game4j.starter;
 
+import com.game4j.cluster.gossip.GossipManager;
+import com.game4j.cluster.gossip.GossipNode;
+import com.game4j.cluster.heartbeat.HeartbeatTask;
 import com.game4j.netty.server.NettyServer;
 import com.game4j.starter.config.ServerConfig;
 import com.game4j.starter.initializer.ControllerInitializer;
 import com.game4j.starter.initializer.PluginInitializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.UUID;
 
 public class GameBootstrap {
     private static final Logger log = LoggerFactory.getLogger(GameBootstrap.class);
@@ -25,6 +30,7 @@ public class GameBootstrap {
             initPlugin();
             initController();
             startNetty();
+            startGossipNode();
             log.info("Game Server Started");
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -47,5 +53,15 @@ public class GameBootstrap {
         log.info("Starting Netty...");
         NettyServer server = new NettyServer();
         server.start(config.getPort());
+    }
+
+    private void startGossipNode() {
+        GossipNode node = new GossipNode(
+                UUID.randomUUID().toString(),
+                "127.0.0.1",
+                9000
+        );
+        GossipManager.init(node);
+        HeartbeatTask.start();
     }
 }

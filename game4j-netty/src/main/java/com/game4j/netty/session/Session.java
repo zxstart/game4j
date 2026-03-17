@@ -3,7 +3,6 @@ package com.game4j.netty.session;
 import io.netty.channel.Channel;
 
 public class Session {
-
     private final Channel channel;
 
     public Session(Channel channel) {
@@ -11,8 +10,6 @@ public class Session {
     }
 
     public void send(Object msg) {
-
         channel.writeAndFlush(msg);
     }
-
 }

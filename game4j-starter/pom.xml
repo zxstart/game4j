@@ -39,6 +39,7 @@
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
+            <scope>runtime</scope>
         </dependency>
 
         <!-- gRPC: 显式声明，避免运行环境未携带传递依赖 -->

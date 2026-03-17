@@ -105,6 +105,14 @@ public class GameBootstrap {
                         err
                 );
             }
+            if (isHazelcastClassMissing(err)) {
+                throw new IllegalStateException(
+                        "Cluster startup failed: missing Hazelcast runtime classes in classpath, " +
+                                "please ensure com.hazelcast:hazelcast is available " +
+                                "or disable cluster with -Dgame4j.cluster.enabled=false.",
+                        err
+                );
+            }
             throw err;
         }
         Runtime.getRuntime().addShutdownHook(new Thread(ClusterManager::shutdown));
@@ -121,5 +129,10 @@ public class GameBootstrap {
     private boolean isGrpcClassMissing(NoClassDefFoundError err) {
         String msg = err.getMessage();
         return msg != null && msg.startsWith("io/grpc/");
+    }
+
+    private boolean isHazelcastClassMissing(NoClassDefFoundError err) {
+        String msg = err.getMessage();
+        return msg != null && msg.startsWith("com/hazelcast/");
     }
 }

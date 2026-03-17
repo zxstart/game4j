@@ -9,7 +9,6 @@ import java.util.List;
  * </p>
  */
 public class GossipProtocol {
-
     /**
      * 消息来源节点ID
      */

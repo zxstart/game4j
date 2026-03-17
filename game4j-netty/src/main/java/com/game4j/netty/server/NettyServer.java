@@ -20,35 +20,28 @@ public class NettyServer {
 
     /**
      * 启动服务器
-     * 
+     *
      * @param port 监听端口
      * @throws Exception 启动异常
      */
     public void start(int port) throws Exception {
-
         EventLoopGroup boss = new NioEventLoopGroup(1);
         EventLoopGroup worker = new NioEventLoopGroup();
-
         ServerBootstrap bootstrap = new ServerBootstrap();
-
         bootstrap.group(boss, worker)
                 .channel(NioServerSocketChannel.class)
                 .childHandler(new ChannelInitializer<>() {
 
                     @Override
                     protected void initChannel(Channel ch) {
-
                         ch.pipeline()
                                 .addLast(new ProtoDecoder())
                                 .addLast(new ProtoEncoder())
                                 .addLast(new GameChannelHandler());
-
                     }
 
                 });
-
         bootstrap.bind(port).sync();
-
         System.out.println("Game Server Start : " + port);
     }
 

@@ -25,16 +25,14 @@ public class ControllerInitializer {
 
     /**
      * 初始化控制器
-     * 
+     *
      * @param basePackage 扫描的基础包名
      */
     public static void init(String basePackage) {
         try {
-            List<Class<?>> controllers =
-                    ControllerScanner.scan(basePackage);
+            List<Class<?>> controllers = ControllerScanner.scan(basePackage);
             for (Class<?> clazz : controllers) {
-                Object controller =
-                        clazz.getDeclaredConstructor().newInstance();
+                Object controller = clazz.getDeclaredConstructor().newInstance();
                 // 注册到 Spring-like 上下文
                 GameContext.registerBean(clazz, controller);
                 // 注册路由
@@ -48,7 +46,7 @@ public class ControllerInitializer {
 
     /**
      * 注册控制器中的所有路由方法
-     * 
+     *
      * @param controller 控制器实例
      */
     private static void registerRoutes(Object controller) {
@@ -57,8 +55,7 @@ public class ControllerInitializer {
             RouteDefinition def = RouteBuilder.build(controller, method);
             if (def != null) {
                 RouteDispatcher.register(def);
-                log.info("Route register cmd={}",
-                        def.getCmd());
+                log.info("Route register cmd={}", def.getCmd());
             }
         }
     }

@@ -16,10 +16,9 @@ import java.util.List;
  * </p>
  */
 public class ControllerScanner {
-
     /**
      * 扫描包并返回控制器类列表
-     * 
+     *
      * @param basePackage 基础包名
      * @return 控制器类列表
      */

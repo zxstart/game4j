@@ -14,7 +14,6 @@ import java.lang.invoke.MethodHandle;
 @Setter
 @Getter
 public class RouteDefinition {
-
     /**
      * 命令ID
      */
@@ -34,5 +33,4 @@ public class RouteDefinition {
      * 请求体类型 (Protobuf类)
      */
     private Class<?> bodyType;
-
 }

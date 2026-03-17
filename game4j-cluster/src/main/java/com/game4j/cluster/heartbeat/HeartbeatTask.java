@@ -31,7 +31,6 @@ public class HeartbeatTask {
             checkNodes();
             gossip();
         }, 3, 3, TimeUnit.SECONDS);
-
     }
 
     /**
@@ -51,13 +50,11 @@ public class HeartbeatTask {
      * 执行 Gossip 协议同步
      */
     private static void gossip() {
-        GossipNode randomNode =
-                GossipManager.randomNode();
+        GossipNode randomNode = GossipManager.randomNode();
         if (randomNode == null) {
             return;
         }
-        log.info("Gossip sync with : {}",
-                randomNode.getNodeId());
+        log.info("Gossip sync with : {}", randomNode.getNodeId());
         // 真实实现应该通过 TCP / UDP 发送节点列表
     }
 }

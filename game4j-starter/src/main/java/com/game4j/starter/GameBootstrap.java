@@ -29,7 +29,7 @@ public class GameBootstrap {
     private final ServerConfig config;
 
     public GameBootstrap(String scanPackage) {
-        this.config = new ServerConfig(scanPackage);
+        this.config = ServerConfig.load(scanPackage);
     }
 
     public GameBootstrap(ServerConfig config) {

@@ -1,5 +1,7 @@
 package com.game4j.core.dispatcher;
 
+import com.baidu.bjf.remoting.protobuf.Codec;
+
 import java.lang.invoke.MethodHandle;
 
 /**
@@ -23,8 +25,14 @@ public class RouteInvoker {
                               Object session,
                               Object body) {
         try {
+            Object realBody = body;
+            Codec codec = route.getCodec();
+            if (codec != null && body instanceof byte[] bytes) {
+                realBody = codec.decode(bytes);
+            }
+            
             MethodHandle handle = route.getMethodHandle();
-            handle.invokeExact(session, body);
+            handle.invoke(session, realBody);
         } catch (Throwable e) {
             throw new RuntimeException(e);
         }

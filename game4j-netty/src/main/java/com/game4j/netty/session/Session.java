@@ -1,5 +1,7 @@
 package com.game4j.netty.session;
 
+import com.baidu.bjf.remoting.protobuf.ProtobufProxy;
+import com.game4j.protocol.GameMessage;
 import io.netty.channel.Channel;
 
 /**
@@ -22,5 +24,23 @@ public class Session {
      */
     public void send(Object msg) {
         channel.writeAndFlush(msg);
+    }
+
+    /**
+     * 发送 Protobuf 消息
+     *
+     * @param cmd 协议号
+     * @param msg Protobuf 对象
+     */
+    @SuppressWarnings("unchecked")
+    public void send(int cmd, Object msg) {
+        try {
+            // JProtobuf 内部自带缓存，可以直接 create
+            com.baidu.bjf.remoting.protobuf.Codec codec = ProtobufProxy.create(msg.getClass());
+            byte[] bytes = codec.encode(msg);
+            channel.writeAndFlush(new GameMessage(cmd, bytes));
+        } catch (Exception e) {
+            throw new RuntimeException("Encode protobuf error", e);
+        }
     }
 }

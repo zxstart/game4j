@@ -1,5 +1,6 @@
 package com.game4j.core.dispatcher;
 
+import com.baidu.bjf.remoting.protobuf.Codec;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -33,4 +34,9 @@ public class RouteDefinition {
      * 请求体类型 (Protobuf类)
      */
     private Class<?> bodyType;
+
+    /**
+     * 请求体 Codec (Protobuf)
+     */
+    private Codec<?> codec;
 }

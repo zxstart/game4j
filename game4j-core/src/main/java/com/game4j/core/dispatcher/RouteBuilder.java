@@ -1,5 +1,6 @@
 package com.game4j.core.dispatcher;
 
+import com.baidu.bjf.remoting.protobuf.ProtobufProxy;
 import com.game4j.core.annotation.G4JRequestBody;
 import com.game4j.core.annotation.G4JRoute;
 import com.game4j.core.reflection.MethodHandleFactory;
@@ -37,7 +38,9 @@ public class RouteBuilder {
         def.setMethodHandle(handle);
         for (Parameter parameter : method.getParameters()) {
             if (parameter.isAnnotationPresent(G4JRequestBody.class)) {
-                def.setBodyType(parameter.getType());
+                Class<?> type = parameter.getType();
+                def.setBodyType(type);
+                def.setCodec(ProtobufProxy.create(type));
             }
         }
         return def;

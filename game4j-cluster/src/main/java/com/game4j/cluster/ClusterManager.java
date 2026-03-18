@@ -40,18 +40,43 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * 集群管理器，整合 Hazelcast + gRPC + JProtobuf Gossip。
+ * 负责集群节点的初始化、成员管理、Gossip 协议传播等核心功能
  */
 public class ClusterManager {
     private static final Logger log = LoggerFactory.getLogger(ClusterManager.class);
+    /**
+     * 存储节点元数据的 Hazelcast 分布式 Map 名称
+     */
     private static final String META_MAP_NAME = "game4j.cluster.node-meta";
 
+    /**
+     * Hazelcast 实例，用于集群管理和分布式数据存储
+     */
     private static HazelcastInstance hazelcastInstance;
+    /**
+     * 节点元数据分布式 Map，存储集群中所有节点的信息摘要
+     */
     private static IMap<String, NodeDigest> nodeMetaMap;
+    /**
+     * gRPC 服务器，用于处理节点间的 Gossip 通信
+     */
     private static Server grpcServer;
+    /**
+     * 定时调度器，用于周期性执行 Gossip 协议
+     */
     private static ScheduledExecutorService scheduler;
+    /**
+     * IO 执行器，用于处理 gRPC 请求的异步执行
+     */
     private static ExecutorService ioExecutor;
+    /**
+     * 当前集群配置
+     */
     private static ClusterConfig config;
 
+    /**
+     * 本地节点信息
+     */
     @Getter
     private static ClusterNode localNode;
 
@@ -59,6 +84,7 @@ public class ClusterManager {
 
     /**
      * 初始化集群（兼容旧调用）
+     * 使用默认配置初始化集群
      *
      * @param node 本地节点信息
      */
@@ -68,6 +94,10 @@ public class ClusterManager {
 
     /**
      * 初始化本地节点并加入 Hazelcast 集群，同时启动 Gossip gRPC 服务。
+     * 该方法会配置 Hazelcast 网络、注册成员监听器、启动 gRPC 服务器和定时 Gossip 任务
+     *
+     * @param node 本地节点信息
+     * @param clusterConfig 集群配置，为 null 时使用默认配置
      */
     public static synchronized void init(ClusterNode node, ClusterConfig clusterConfig) {
         if (hazelcastInstance != null) {
@@ -116,6 +146,7 @@ public class ClusterManager {
 
     /**
      * 获取集群中所有节点
+     * 合并 Hazelcast 成员信息和 Gossip 协议传播的节点元数据
      *
      * @return 节点集合
      */
@@ -141,9 +172,10 @@ public class ClusterManager {
     }
 
     /**
-     * 根据节点ID获取节点
+     * 根据节点 ID 获取节点
+     * 优先从 Hazelcast 成员属性中查找
      *
-     * @param nodeId 节点ID
+     * @param nodeId 节点 ID
      * @return 节点信息，不存在返回 null
      */
     public static ClusterNode getNode(String nodeId) {
@@ -161,6 +193,7 @@ public class ClusterManager {
 
     /**
      * 随机选择一个其他节点
+     * 优先从 Gossip 元数据中选择，其次回退到 Hazelcast Member 属性
      *
      * @return 随机选中的节点，如果只有自己则返回 null
      */
@@ -191,6 +224,7 @@ public class ClusterManager {
 
     /**
      * 关闭集群节点
+     * 依次关闭调度器、执行器、gRPC 服务器和 Hazelcast 实例
      */
     public static void shutdown() {
         if (scheduler != null) {
@@ -213,6 +247,13 @@ public class ClusterManager {
         localNode = null;
     }
 
+    /**
+     * 将 Hazelcast Member 转换为 ClusterNode 对象
+     * 从 Member 属性中提取节点信息
+     *
+     * @param member Hazelcast 成员
+     * @return 集群节点对象
+     */
     private static ClusterNode memberToNode(Member member) {
         String nodeId = member.getAttribute("nodeId");
         String nodeType = member.getAttribute("nodeType");
@@ -225,6 +266,13 @@ public class ClusterManager {
         return new ClusterNode(nodeId, nodeType, host, port, grpcPort);
     }
 
+    /**
+     * 配置 Hazelcast 网络设置
+     * 包括端口配置和 TCP/IP 加入配置
+     *
+     * @param hzConfig Hazelcast 配置对象
+     * @param clusterConfig 集群配置
+     */
     private static void configureNetwork(Config hzConfig, ClusterConfig clusterConfig) {
         NetworkConfig networkConfig = hzConfig.getNetworkConfig();
         if (localNode.getPort() > 0) {
@@ -242,6 +290,12 @@ public class ClusterManager {
         }
     }
 
+    /**
+     * 绑定 Hazelcast 成员监听器
+     * 监听节点加入和离开事件，并更新节点元数据
+     *
+     * @param cluster Hazelcast 集群对象
+     */
     private static void bindMembershipListener(Cluster cluster) {
         cluster.addMembershipListener(new MembershipListener() {
             @Override
@@ -264,6 +318,12 @@ public class ClusterManager {
         });
     }
 
+    /**
+     * 启动 Gossip RPC 服务器
+     * 使用 Netty 作为底层传输，处理来自其他节点的 Gossip 请求
+     *
+     * @param grpcPort gRPC 服务端口
+     */
     private static void startGossipRpcServer(int grpcPort) {
         ioExecutor = Executors.newVirtualThreadPerTaskExecutor();
         try {
@@ -277,12 +337,20 @@ public class ClusterManager {
         }
     }
 
+    /**
+     * 启动 Gossip 定时调度器
+     * 按照配置的间隔周期性执行 Gossip 协议，传播节点信息
+     */
     private static void startGossipScheduler() {
         scheduler = Executors.newSingleThreadScheduledExecutor(Thread.ofPlatform().name("gossip-scheduler-", 0).factory());
         long period = Math.max(500L, config.getGossipInterval().toMillis());
         scheduler.scheduleWithFixedDelay(ClusterManager::gossipOnce, period, period, TimeUnit.MILLISECONDS);
     }
 
+    /**
+     * 执行一次 Gossip 协议
+     * 随机选择一个目标节点并异步交换节点信息
+     */
     private static void gossipOnce() {
         ClusterNode target = randomNode();
         if (target == null) {
@@ -291,6 +359,12 @@ public class ClusterManager {
         ioExecutor.submit(() -> doGossipExchange(target));
     }
 
+    /**
+     * 执行 Gossip 信息交换
+     * 向目标节点发送当前节点信息并合并对方返回的节点列表
+     *
+     * @param target 目标节点
+     */
     private static void doGossipExchange(ClusterNode target) {
         GossipExchangeRequest request = buildRequest();
         try (GossipRpcClient client = new GossipRpcClient(target.getHost(), target.getGrpcPort())) {
@@ -301,6 +375,12 @@ public class ClusterManager {
         }
     }
 
+    /**
+     * 构建 Gossip 请求
+     * 包含本地节点信息和当前已知的节点列表
+     *
+     * @return Gossip 交换请求
+     */
     private static GossipExchangeRequest buildRequest() {
         GossipExchangeRequest request = new GossipExchangeRequest();
         request.setFromNodeId(localNode.getNodeId());
@@ -310,6 +390,13 @@ public class ClusterManager {
         return request;
     }
 
+    /**
+     * 处理收到的 Gossip 请求
+     * 更新发送方节点信息并合并其已知的节点列表
+     *
+     * @param request Gossip 交换请求
+     * @return Gossip 交换响应
+     */
     private static GossipExchangeResponse handleGossipRequest(GossipExchangeRequest request) {
         if (request.getSenderDigest() != null) {
             upsertNode(request.getSenderDigest());
@@ -323,6 +410,12 @@ public class ClusterManager {
         return response;
     }
 
+    /**
+     * 合并远程节点列表到本地元数据
+     * 遍历远程节点列表并更新到分布式 Map 中
+     *
+     * @param remoteNodes 远程节点列表
+     */
     private static void mergeKnownNodes(List<NodeDigest> remoteNodes) {
         if (remoteNodes == null || remoteNodes.isEmpty()) {
             return;
@@ -334,6 +427,12 @@ public class ClusterManager {
         }
     }
 
+    /**
+     * 插入或更新节点信息
+     * 使用乐观时间戳策略，只更新更新的或相同时间的数据
+     *
+     * @param incoming 传入的节点摘要信息
+     */
     private static void upsertNode(NodeDigest incoming) {
         if (incoming == null || incoming.getNodeId() == null || nodeMetaMap == null) {
             return;
@@ -349,6 +448,12 @@ public class ClusterManager {
         });
     }
 
+    /**
+     * 获取本地主机地址
+     * 当无法获取时回退到 127.0.0.1
+     *
+     * @return 本地主机 IP 地址
+     */
     private static String localHostAddress() {
         try {
             return InetAddress.getLocalHost().getHostAddress();

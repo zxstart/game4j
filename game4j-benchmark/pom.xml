@@ -13,7 +13,7 @@
     <artifactId>game4j-benchmark</artifactId>
     <packaging>jar</packaging>
     <description>
-        benchmark demo (JMH)
+        GameChannelHandler micro benchmark (JMH)
     </description>
 
     <properties>
@@ -26,8 +26,7 @@
     <dependencies>
         <dependency>
             <groupId>com.game4j</groupId>
-            <artifactId>game4j-starter</artifactId>
-            <version>${project.version}</version>
+            <artifactId>game4j-netty</artifactId>
         </dependency>
         <dependency>
             <groupId>org.openjdk.jmh</groupId>

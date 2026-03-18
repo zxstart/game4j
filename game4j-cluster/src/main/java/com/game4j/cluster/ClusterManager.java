@@ -44,6 +44,8 @@ import java.util.concurrent.TimeUnit;
  */
 public class ClusterManager {
     private static final Logger log = LoggerFactory.getLogger(ClusterManager.class);
+    private static final String HAZELCAST_LOGGING_TYPE_KEY = "hazelcast.logging.type";
+    private static final String HAZELCAST_LOGGING_TYPE_SLF4J = "slf4j";
     /**
      * 存储节点元数据的 Hazelcast 分布式 Map 名称
      */
@@ -113,6 +115,8 @@ public class ClusterManager {
         if (localNode.getHost() == null || localNode.getHost().isBlank()) {
             localNode.setHost(localHostAddress());
         }
+
+        ensureHazelcastLoggingTypeConfigured();
 
         Config hzConfig = new Config();
         hzConfig.setClusterName(config.getClusterName());
@@ -459,6 +463,17 @@ public class ClusterManager {
             return InetAddress.getLocalHost().getHostAddress();
         } catch (UnknownHostException ex) {
             return "127.0.0.1";
+        }
+    }
+
+    /**
+     * 默认让 Hazelcast 走 SLF4J，避免回退到 JUL 导致控制台输出风格不一致。
+     * 若用户已显式配置，则尊重用户配置。
+     */
+    private static void ensureHazelcastLoggingTypeConfigured() {
+        String value = System.getProperty(HAZELCAST_LOGGING_TYPE_KEY);
+        if (value == null || value.isBlank()) {
+            System.setProperty(HAZELCAST_LOGGING_TYPE_KEY, HAZELCAST_LOGGING_TYPE_SLF4J);
         }
     }
 }

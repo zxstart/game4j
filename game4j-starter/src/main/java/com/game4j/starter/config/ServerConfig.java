@@ -24,6 +24,8 @@ public class ServerConfig {
     private static final String KEY_CLUSTER_HAZELCAST_PORT = "game4j.cluster.hazelcast-port";
     private static final String KEY_CLUSTER_GRPC_PORT = "game4j.cluster.grpc-port";
     private static final String KEY_CLUSTER_SEED_MEMBERS = "game4j.cluster.seed-members";
+    private static final String KEY_CLUSTER_HAZELCAST_AUTO_ADD_JVM_MODULE_ARGS =
+            "game4j.cluster.hazelcast.auto-add-jvm-module-args";
     private static final String KEY_ADMIN_ENABLED = "game4j.admin.enabled";
     private static final String KEY_ADMIN_HOST = "game4j.admin.host";
     private static final String KEY_ADMIN_PORT = "game4j.admin.port";
@@ -77,6 +79,12 @@ public class ServerConfig {
      * 集群种子地址列表，格式 host:port（Hazelcast 端口）
      */
     private List<String> seedMembers = new ArrayList<>();
+
+    /**
+     * 是否在 Java 9+ 环境自动重启进程并补齐 Hazelcast 模块访问参数
+     */
+    @Setter
+    private boolean hazelcastAutoAddJvmModuleArgs = false;
 
     /**
      * 是否启用管理控制台（HTTP）
@@ -192,6 +200,10 @@ public class ServerConfig {
         this.seedMembers = seedMembers != null ? seedMembers : new ArrayList<>();
     }
 
+    public boolean isHazelcastAutoAddJvmModuleArgs() {
+        return hazelcastAutoAddJvmModuleArgs;
+    }
+
     public boolean isAdminEnabled() {
         return adminEnabled;
     }
@@ -218,6 +230,8 @@ public class ServerConfig {
         setIfPresent(props.getProperty(KEY_CLUSTER_HAZELCAST_PORT), s -> this.setHazelcastPort(parseInt(s, this.hazelcastPort)));
         setIfPresent(props.getProperty(KEY_CLUSTER_GRPC_PORT), s -> this.setClusterGrpcPort(parseInt(s, this.clusterGrpcPort)));
         setIfPresent(props.getProperty(KEY_CLUSTER_SEED_MEMBERS), s -> this.setSeedMembers(parseCsv(s)));
+        setIfPresent(props.getProperty(KEY_CLUSTER_HAZELCAST_AUTO_ADD_JVM_MODULE_ARGS),
+                s -> this.setHazelcastAutoAddJvmModuleArgs(Boolean.parseBoolean(s)));
         setIfPresent(props.getProperty(KEY_ADMIN_ENABLED), s -> this.setAdminEnabled(Boolean.parseBoolean(s)));
         setIfPresent(props.getProperty(KEY_ADMIN_HOST), this::setAdminHost);
         setIfPresent(props.getProperty(KEY_ADMIN_PORT), s -> this.setAdminPort(parseInt(s, this.adminPort)));
@@ -234,6 +248,8 @@ public class ServerConfig {
         overrideIfPresent(KEY_CLUSTER_HAZELCAST_PORT, s -> this.setHazelcastPort(parseInt(s, this.hazelcastPort)));
         overrideIfPresent(KEY_CLUSTER_GRPC_PORT, s -> this.setClusterGrpcPort(parseInt(s, this.clusterGrpcPort)));
         overrideIfPresent(KEY_CLUSTER_SEED_MEMBERS, s -> this.setSeedMembers(parseCsv(s)));
+        overrideIfPresent(KEY_CLUSTER_HAZELCAST_AUTO_ADD_JVM_MODULE_ARGS,
+                s -> this.setHazelcastAutoAddJvmModuleArgs(Boolean.parseBoolean(s)));
         overrideIfPresent(KEY_ADMIN_ENABLED, s -> this.setAdminEnabled(Boolean.parseBoolean(s)));
         overrideIfPresent(KEY_ADMIN_HOST, this::setAdminHost);
         overrideIfPresent(KEY_ADMIN_PORT, s -> this.setAdminPort(parseInt(s, this.adminPort)));

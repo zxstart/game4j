@@ -41,6 +41,7 @@ public class GameBootstrap {
      */
     public void start() {
         try {
+            ensureHazelcastJvmModuleArgsIfNeeded();
             BannerPrinter.print();
             log.info("Game Server Starting...");
             initPlugin();
@@ -51,6 +52,16 @@ public class GameBootstrap {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private void ensureHazelcastJvmModuleArgsIfNeeded() {
+        if (!config.isClusterEnabled()) {
+            return;
+        }
+        if (!config.isHazelcastAutoAddJvmModuleArgs()) {
+            return;
+        }
+        HazelcastJvmArgsAutoConfigurator.ensureHazelcastJvmArgs();
     }
 
     private void initPlugin() {

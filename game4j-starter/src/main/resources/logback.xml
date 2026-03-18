@@ -6,6 +6,9 @@
         </encoder>
     </appender>
 
+    <!-- Keep Hazelcast internals quiet; use ClusterManager custom logs instead. -->
+    <logger name="com.hazelcast" level="WARN" />
+
     <root level="INFO">
         <appender-ref ref="STDOUT" />
     </root>

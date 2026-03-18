@@ -46,6 +46,9 @@ public class ClusterManager {
     private static final Logger log = LoggerFactory.getLogger(ClusterManager.class);
     private static final String HAZELCAST_LOGGING_TYPE_KEY = "hazelcast.logging.type";
     private static final String HAZELCAST_LOGGING_TYPE_SLF4J = "slf4j";
+    private static final String HAZELCAST_LOGGING_DETAILS_ENABLED_KEY = "hazelcast.logging.details.enabled";
+    private static final String HAZELCAST_PHONE_HOME_ENABLED_KEY = "hazelcast.phone.home.enabled";
+    private static final String HAZELCAST_DIAGNOSTICS_ENABLED_KEY = "hazelcast.diagnostics.enabled";
     /**
      * 存储节点元数据的 Hazelcast 分布式 Map 名称
      */
@@ -116,10 +119,26 @@ public class ClusterManager {
             localNode.setHost(localHostAddress());
         }
 
-        ensureHazelcastLoggingTypeConfigured();
+        String hazelcastLoggingType = ensureHazelcastLoggingTypeConfigured();
+        String hazelcastLoggingDetailsEnabled = ensureHazelcastPropertyConfigured(
+                HAZELCAST_LOGGING_DETAILS_ENABLED_KEY,
+                "false"
+        );
+        String hazelcastPhoneHomeEnabled = ensureHazelcastPropertyConfigured(
+                HAZELCAST_PHONE_HOME_ENABLED_KEY,
+                "false"
+        );
+        String hazelcastDiagnosticsEnabled = ensureHazelcastPropertyConfigured(
+                HAZELCAST_DIAGNOSTICS_ENABLED_KEY,
+                "false"
+        );
 
         Config hzConfig = new Config();
         hzConfig.setClusterName(config.getClusterName());
+        hzConfig.setProperty(HAZELCAST_LOGGING_TYPE_KEY, hazelcastLoggingType);
+        hzConfig.setProperty(HAZELCAST_LOGGING_DETAILS_ENABLED_KEY, hazelcastLoggingDetailsEnabled);
+        hzConfig.setProperty(HAZELCAST_PHONE_HOME_ENABLED_KEY, hazelcastPhoneHomeEnabled);
+        hzConfig.setProperty(HAZELCAST_DIAGNOSTICS_ENABLED_KEY, hazelcastDiagnosticsEnabled);
 
         // 将节点业务信息写入 Hazelcast Member 的属性中
         hzConfig.getMemberAttributeConfig().setAttribute("nodeId", localNode.getNodeId());
@@ -305,7 +324,14 @@ public class ClusterManager {
             @Override
             public void memberAdded(MembershipEvent membershipEvent) {
                 ClusterNode node = memberToNode(membershipEvent.getMember());
-                log.info("member added: {}", node.getNodeId());
+                log.info(
+                        "cluster member joined: nodeId={}, host={}, hzPort={}, grpcPort={}, members={}",
+                        node.getNodeId(),
+                        node.getHost(),
+                        node.getPort(),
+                        node.getGrpcPort(),
+                        membershipEvent.getCluster().getMembers().size()
+                );
                 if (node.getNodeId() != null && node.getGrpcPort() > 0) {
                     upsertNode(node.toDigest());
                 }
@@ -317,7 +343,11 @@ public class ClusterManager {
                 if (nodeId != null && nodeMetaMap != null) {
                     nodeMetaMap.remove(nodeId);
                 }
-                log.info("member removed: {}", nodeId);
+                log.info(
+                        "cluster member left: nodeId={}, members={}",
+                        nodeId,
+                        membershipEvent.getCluster().getMembers().size()
+                );
             }
         });
     }
@@ -470,10 +500,25 @@ public class ClusterManager {
      * 默认让 Hazelcast 走 SLF4J，避免回退到 JUL 导致控制台输出风格不一致。
      * 若用户已显式配置，则尊重用户配置。
      */
-    private static void ensureHazelcastLoggingTypeConfigured() {
+    private static String ensureHazelcastLoggingTypeConfigured() {
         String value = System.getProperty(HAZELCAST_LOGGING_TYPE_KEY);
         if (value == null || value.isBlank()) {
-            System.setProperty(HAZELCAST_LOGGING_TYPE_KEY, HAZELCAST_LOGGING_TYPE_SLF4J);
+            value = HAZELCAST_LOGGING_TYPE_SLF4J;
+            System.setProperty(HAZELCAST_LOGGING_TYPE_KEY, value);
         }
+        return value;
+    }
+
+    /**
+     * 确保 Hazelcast 系统属性有默认值。
+     * 如果用户通过 -D 显式配置，则优先使用用户值。
+     */
+    private static String ensureHazelcastPropertyConfigured(String key, String defaultValue) {
+        String value = System.getProperty(key);
+        if (value == null || value.isBlank()) {
+            value = defaultValue;
+            System.setProperty(key, value);
+        }
+        return value;
     }
 }

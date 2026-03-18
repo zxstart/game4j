@@ -16,6 +16,7 @@
         <module>game4j-cluster</module>
         <module>game4j-plugin</module>
         <module>game4j-starter</module>
+        <module>game4j-benchmark</module>
     </modules>
 
     <properties>

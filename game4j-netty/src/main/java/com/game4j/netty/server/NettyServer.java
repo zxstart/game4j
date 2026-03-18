@@ -9,6 +9,7 @@ import io.netty.channel.ChannelInitializer;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Netty 服务端
@@ -16,6 +17,7 @@ import io.netty.channel.socket.nio.NioServerSocketChannel;
  * 负责启动 Netty 服务，配置 ChannelPipeline。
  * </p>
  */
+@Slf4j
 public class NettyServer {
 
     /**
@@ -42,7 +44,7 @@ public class NettyServer {
 
                 });
         bootstrap.bind(port).sync();
-        System.out.println("Game Server Start : " + port);
+        log.info("Game Server Start : {}", port);
     }
 
 }

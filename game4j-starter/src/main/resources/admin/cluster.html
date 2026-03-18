@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game4J Cluster Dashboard</title>
+    <script>
+        const savedTheme = localStorage.getItem("game4j-dashboard-theme");
+        const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+        if (savedTheme === "dark" || (!savedTheme && prefersDark)) {
+            document.documentElement.classList.add("dark");
+        } else {
+            document.documentElement.classList.remove("dark");
+        }
+    </script>
+    <script>
+        window.tailwind = window.tailwind || {};
+        window.tailwind.config = {darkMode: "class"};
+    </script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 text-slate-900 min-h-screen dark:bg-slate-950 dark:text-slate-100">
+<main class="max-w-6xl mx-auto px-4 py-8">
+    <header class="mb-6 flex items-start justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold">Game4J Cluster Dashboard</h1>
+            <p class="text-slate-500 dark:text-slate-400 text-sm mt-2">每 5 秒自动刷新一次集群状态</p>
+        </div>
+        <button id="themeToggleBtn"
+                class="px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 text-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800">
+            切换深色模式
+        </button>
+    </header>
+
+    <section class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div class="rounded-xl bg-white border border-slate-200 p-4 dark:bg-slate-900 dark:border-slate-800">
+            <div class="text-slate-500 dark:text-slate-400 text-xs">集群名称</div>
+            <div id="clusterName" class="text-lg font-semibold mt-1">-</div>
+        </div>
+        <div class="rounded-xl bg-white border border-slate-200 p-4 dark:bg-slate-900 dark:border-slate-800">
+            <div class="text-slate-500 dark:text-slate-400 text-xs">节点总数</div>
+            <div id="nodeCount" class="text-lg font-semibold mt-1">-</div>
+        </div>
+        <div class="rounded-xl bg-white border border-slate-200 p-4 dark:bg-slate-900 dark:border-slate-800">
+            <div class="text-slate-500 dark:text-slate-400 text-xs">本机节点</div>
+            <div id="localNodeId" class="text-lg font-semibold mt-1 break-all">-</div>
+        </div>
+        <div class="rounded-xl bg-white border border-slate-200 p-4 dark:bg-slate-900 dark:border-slate-800">
+            <div class="text-slate-500 dark:text-slate-400 text-xs">最近刷新</div>
+            <div id="lastRefresh" class="text-lg font-semibold mt-1">-</div>
+        </div>
+    </section>
+
+    <section class="rounded-xl bg-white border border-slate-200 overflow-hidden dark:bg-slate-900 dark:border-slate-800">
+        <div class="px-4 py-3 border-b border-slate-200 dark:border-slate-800 font-medium">节点列表</div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full text-sm">
+                <thead class="bg-slate-100 text-slate-600 dark:bg-slate-800/60 dark:text-slate-300">
+                <tr>
+                    <th class="text-left px-4 py-3">Node ID</th>
+                    <th class="text-left px-4 py-3">Type</th>
+                    <th class="text-left px-4 py-3">Host</th>
+                    <th class="text-left px-4 py-3">Hazelcast Port</th>
+                    <th class="text-left px-4 py-3">gRPC Port</th>
+                    <th class="text-left px-4 py-3">Local</th>
+                </tr>
+                </thead>
+                <tbody id="nodesBody" class="divide-y divide-slate-200 dark:divide-slate-800">
+                <tr>
+                    <td colspan="6" class="px-4 py-4 text-slate-500 dark:text-slate-400">加载中...</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <p id="errorBox" class="hidden mt-4 rounded border border-red-700 bg-red-900/30 text-red-300 px-4 py-3 text-sm"></p>
+</main>
+
+<script>
+    const clusterNameEl = document.getElementById("clusterName");
+    const nodeCountEl = document.getElementById("nodeCount");
+    const localNodeIdEl = document.getElementById("localNodeId");
+    const lastRefreshEl = document.getElementById("lastRefresh");
+    const nodesBodyEl = document.getElementById("nodesBody");
+    const errorBoxEl = document.getElementById("errorBox");
+    const themeToggleBtn = document.getElementById("themeToggleBtn");
+
+    function updateThemeButtonText() {
+        const dark = document.documentElement.classList.contains("dark");
+        themeToggleBtn.textContent = dark ? "切换浅色模式" : "切换深色模式";
+    }
+
+    function toggleTheme() {
+        const dark = document.documentElement.classList.toggle("dark");
+        localStorage.setItem("game4j-dashboard-theme", dark ? "dark" : "light");
+        updateThemeButtonText();
+    }
+
+    function setError(message) {
+        if (!message) {
+            errorBoxEl.classList.add("hidden");
+            errorBoxEl.textContent = "";
+            return;
+        }
+        errorBoxEl.classList.remove("hidden");
+        errorBoxEl.textContent = message;
+    }
+
+    function safe(value) {
+        if (value === null || value === undefined || value === "") {
+            return "-";
+        }
+        return String(value);
+    }
+
+    function renderNodes(nodes) {
+        if (!Array.isArray(nodes) || nodes.length === 0) {
+            nodesBodyEl.innerHTML = '<tr><td colspan="6" class="px-4 py-4 text-slate-500 dark:text-slate-400">当前无节点数据</td></tr>';
+            return;
+        }
+
+        const rows = nodes.map((node) => {
+            const localBadge = node.local
+                ? '<span class="inline-flex px-2 py-0.5 rounded bg-emerald-900 text-emerald-300 text-xs">YES</span>'
+                : '<span class="inline-flex px-2 py-0.5 rounded bg-slate-200 text-slate-700 text-xs dark:bg-slate-700 dark:text-slate-300">NO</span>';
+            return `
+            <tr class="hover:bg-slate-100 dark:hover:bg-slate-800/40">
+                <td class="px-4 py-3 break-all">${safe(node.nodeId)}</td>
+                <td class="px-4 py-3">${safe(node.nodeType)}</td>
+                <td class="px-4 py-3">${safe(node.host)}</td>
+                <td class="px-4 py-3">${safe(node.port)}</td>
+                <td class="px-4 py-3">${safe(node.grpcPort)}</td>
+                <td class="px-4 py-3">${localBadge}</td>
+            </tr>`;
+        }).join("");
+
+        nodesBodyEl.innerHTML = rows;
+    }
+
+    async function refresh() {
+        try {
+            const response = await fetch("/admin/cluster/api/overview", {cache: "no-store"});
+            if (!response.ok) {
+                throw new Error("HTTP " + response.status);
+            }
+            const data = await response.json();
+            setError("");
+            clusterNameEl.textContent = safe(data.clusterName);
+            nodeCountEl.textContent = safe(data.nodeCount);
+            localNodeIdEl.textContent = safe(data.localNodeId);
+            lastRefreshEl.textContent = new Date().toLocaleString();
+            renderNodes(data.nodes || []);
+        } catch (error) {
+            setError("获取集群数据失败: " + error.message);
+        }
+    }
+
+    themeToggleBtn.addEventListener("click", toggleTheme);
+    updateThemeButtonText();
+    refresh();
+    setInterval(refresh, 5000);
+</script>
+</body>
+</html>

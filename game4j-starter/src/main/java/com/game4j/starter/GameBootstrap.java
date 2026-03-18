@@ -41,6 +41,7 @@ public class GameBootstrap {
      */
     public void start() {
         try {
+            BannerPrinter.print();
             log.info("Game Server Starting...");
             initPlugin();
             initController();

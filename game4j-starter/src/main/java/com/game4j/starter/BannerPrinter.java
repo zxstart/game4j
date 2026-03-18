@@ -30,7 +30,7 @@ final class BannerPrinter {
 
         long pid = ProcessHandle.current().pid();
         String version = resolveVersion();
-        String document = "https://github.com/zxstart/game4j";
+        String document = "https://github.com/zxstart";
 
         Runtime runtime = Runtime.getRuntime();
         double usedMemoryMb = toMb(runtime.totalMemory() - runtime.freeMemory());

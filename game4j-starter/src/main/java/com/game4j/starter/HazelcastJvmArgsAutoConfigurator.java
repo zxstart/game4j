@@ -143,7 +143,7 @@ public final class HazelcastJvmArgsAutoConfigurator {
                 continue;
             }
             if (Character.isWhitespace(c) && !inQuotes) {
-                if (current.length() > 0) {
+                if (!current.isEmpty()) {
                     tokens.add(current.toString());
                     current.setLength(0);
                 }
@@ -151,7 +151,7 @@ public final class HazelcastJvmArgsAutoConfigurator {
             }
             current.append(c);
         }
-        if (current.length() > 0) {
+        if (!current.isEmpty()) {
             tokens.add(current.toString());
         }
         return tokens;

@@ -14,6 +14,15 @@ import java.lang.invoke.MethodHandle;
 public class RouteInvoker {
 
     /**
+     * 路由调用结果
+     *
+     * @param request  解码后的请求体对象
+     * @param response 业务方法返回值
+     */
+    public record InvocationResult(Object request, Object response) {
+    }
+
+    /**
      * 调用路由方法
      * 
      * @param route 路由定义
@@ -21,18 +30,19 @@ public class RouteInvoker {
      * @param body 请求体对象
      * @throws RuntimeException 如果调用过程中发生异常
      */
-    public static void invoke(RouteDefinition route,
-                              Object session,
-                              Object body) {
+    public static InvocationResult invoke(RouteDefinition route,
+                                          Object session,
+                                          Object body) {
         try {
             Object realBody = body;
-            Codec codec = route.getCodec();
+            Codec<?> codec = route.getCodec();
             if (codec != null && body instanceof byte[] bytes) {
                 realBody = codec.decode(bytes);
             }
             
             MethodHandle handle = route.getMethodHandle();
-            handle.invoke(session, realBody);
+            Object response = handle.invoke(session, realBody);
+            return new InvocationResult(realBody, response);
         } catch (Throwable e) {
             throw new RuntimeException(e);
         }

@@ -27,6 +27,10 @@ import java.util.UUID;
 public class GameBootstrap {
     private static final Logger log = LoggerFactory.getLogger(GameBootstrap.class);
     private final ServerConfig config;
+    private final Object lifecycleLock = new Object();
+    private volatile NettyServer nettyServer;
+    private volatile Thread shutdownHook;
+    private volatile boolean started;
 
     public GameBootstrap(String scanPackage) {
         this.config = ServerConfig.load(scanPackage);
@@ -40,6 +44,12 @@ public class GameBootstrap {
      * 启动服务器
      */
     public void start() {
+        synchronized (lifecycleLock) {
+            if (started) {
+                log.warn("Game server already started");
+                return;
+            }
+        }
         try {
             ensureHazelcastJvmModuleArgsIfNeeded();
             BannerPrinter.print();
@@ -48,10 +58,23 @@ public class GameBootstrap {
             initController();
             startNetty();
             startClusterNode();
+            registerShutdownHook();
+            synchronized (lifecycleLock) {
+                started = true;
+            }
             log.info("Game Server Started");
         } catch (Exception e) {
+            stopInternal();
             throw new RuntimeException(e);
         }
+    }
+
+    /**
+     * 手动停止服务器，通常用于测试或嵌入式运行场景。
+     */
+    public void stop() {
+        removeShutdownHook();
+        stopInternal();
     }
 
     private void ensureHazelcastJvmModuleArgsIfNeeded() {
@@ -80,6 +103,7 @@ public class GameBootstrap {
         log.info("Starting Netty...");
         NettyServer server = new NettyServer();
         server.start(config.getPort());
+        this.nettyServer = server;
     }
 
     private void startClusterNode() {
@@ -127,7 +151,6 @@ public class GameBootstrap {
             }
             throw err;
         }
-        Runtime.getRuntime().addShutdownHook(new Thread(ClusterManager::shutdown));
         log.info(
                 "Cluster node started, nodeId={}, role={}, hazelcastPort={}, grpcPort={}, seeds={}",
                 node.getNodeId(),
@@ -136,6 +159,58 @@ public class GameBootstrap {
                 node.getGrpcPort(),
                 Objects.toString(clusterConfig.getSeedMembers())
         );
+    }
+
+    private void registerShutdownHook() {
+        synchronized (lifecycleLock) {
+            if (shutdownHook != null) {
+                return;
+            }
+            shutdownHook = new Thread(this::stopInternal, "game4j-bootstrap-shutdown");
+            Runtime.getRuntime().addShutdownHook(shutdownHook);
+        }
+    }
+
+    private void removeShutdownHook() {
+        synchronized (lifecycleLock) {
+            if (shutdownHook == null) {
+                return;
+            }
+            try {
+                Runtime.getRuntime().removeShutdownHook(shutdownHook);
+            } catch (IllegalStateException ignored) {
+                // JVM 正在退出时移除 hook 会抛异常，属于可接受行为。
+            } finally {
+                shutdownHook = null;
+            }
+        }
+    }
+
+    private void stopInternal() {
+        synchronized (lifecycleLock) {
+            if (!started && nettyServer == null && !config.isClusterEnabled()) {
+                return;
+            }
+            started = false;
+        }
+
+        if (config.isClusterEnabled()) {
+            try {
+                ClusterManager.shutdown();
+            } catch (Exception ex) {
+                log.warn("Shutdown cluster failed", ex);
+            }
+        }
+
+        NettyServer server = nettyServer;
+        nettyServer = null;
+        if (server != null) {
+            try {
+                server.stop();
+            } catch (Exception ex) {
+                log.warn("Shutdown netty server failed", ex);
+            }
+        }
     }
 
     private boolean isGrpcClassMissing(NoClassDefFoundError err) {

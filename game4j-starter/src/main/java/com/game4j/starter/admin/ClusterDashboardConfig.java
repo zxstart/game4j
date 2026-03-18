@@ -1,14 +1,13 @@
 package com.game4j.starter.admin;
 
-import java.io.IOException;
-import java.io.InputStream;
+import com.game4j.starter.config.ConfigFileLoader;
+
 import java.util.Properties;
 
 /**
  * 集群管理面板配置。
  */
 public class ClusterDashboardConfig {
-    private static final String CONFIG_FILE = "game4j.properties";
     private static final String KEY_PLUGIN_ENABLED = "game4j.plugin.cluster-dashboard.enabled";
     private static final String KEY_ADMIN_ENABLED = "game4j.admin.enabled";
     private static final String KEY_ADMIN_HOST = "game4j.admin.host";
@@ -27,14 +26,7 @@ public class ClusterDashboardConfig {
 
     public static ClusterDashboardConfig load() {
         ClusterDashboardConfig config = new ClusterDashboardConfig();
-        Properties props = new Properties();
-        try (InputStream in = ClusterDashboardConfig.class.getClassLoader().getResourceAsStream(CONFIG_FILE)) {
-            if (in != null) {
-                props.load(in);
-            }
-        } catch (IOException ignored) {
-            // 使用默认值
-        }
+        Properties props = ConfigFileLoader.loadGame4jProperties();
         config.applyProperties(props);
         config.applySystemProperties();
         return config;

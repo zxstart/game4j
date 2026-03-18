@@ -2,8 +2,6 @@ package com.game4j.starter.config;
 
 import lombok.Setter;
 
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -16,7 +14,6 @@ import java.util.Properties;
  * </p>
  */
 public class ServerConfig {
-    private static final String DEFAULT_CONFIG_FILE = "game4j.properties";
     private static final String KEY_SERVER_PORT = "game4j.server.port";
     private static final String KEY_SERVER_SCAN_PACKAGE = "game4j.server.scan-package";
     private static final String KEY_CLUSTER_ENABLED = "game4j.cluster.enabled";
@@ -108,15 +105,7 @@ public class ServerConfig {
      */
     public static ServerConfig load(String fallbackScanPackage) {
         ServerConfig config = new ServerConfig(fallbackScanPackage);
-        Properties props = new Properties();
-
-        try (InputStream in = ServerConfig.class.getClassLoader().getResourceAsStream(DEFAULT_CONFIG_FILE)) {
-            if (in != null) {
-                props.load(in);
-            }
-        } catch (IOException ignored) {
-            // 读取失败时使用默认值
-        }
+        Properties props = ConfigFileLoader.loadGame4jProperties();
 
         config.applyProperties(props);
         config.applySystemProperties();

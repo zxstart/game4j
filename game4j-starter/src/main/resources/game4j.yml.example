@@ -1,0 +1,35 @@
+# game4j yml 配置示例（复制为 game4j.yml 生效）
+
+game4j:
+  server:
+    # 节点业务端口（示例：9001 / 9002 / 9003）
+    port: 9001
+    # 可选，不填时由启动参数提供
+    # scan-package: com.demo.game
+
+  cluster:
+    enabled: true
+    name: game4j-cluster-demo
+    # 不配置时自动生成 UUID
+    # node-id: node-1
+    node-type: game-server
+    host: 127.0.0.1
+    # Hazelcast 成员端口（示例：5701 / 5702 / 5703）
+    hazelcast-port: 5701
+    # Gossip gRPC 端口（示例：19091 / 19092 / 19093）
+    grpc-port: 19091
+    # 多节点时每个节点都建议写全种子列表
+    seed-members:
+      - 127.0.0.1:5701
+      - 127.0.0.1:5702
+      - 127.0.0.1:5703
+
+  plugin:
+    cluster-dashboard:
+      enabled: true
+
+  admin:
+    enabled: true
+    host: 127.0.0.1
+    # 每个节点管理端口不能重复（示例：18081 / 18082 / 18083）
+    port: 18081

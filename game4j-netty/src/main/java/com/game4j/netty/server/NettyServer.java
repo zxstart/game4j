@@ -64,7 +64,7 @@ public class NettyServer implements AutoCloseable {
                 this.workerGroup = worker;
                 this.serverChannel = channel;
             }
-            log.info("Game server started, port={}", port);
+//            log.info("Game server started, port={}", port);
         } catch (Exception ex) {
             shutdownQuietly(worker, "worker");
             shutdownQuietly(boss, "boss");
@@ -99,7 +99,7 @@ public class NettyServer implements AutoCloseable {
 
         shutdownGracefully(worker, "worker");
         shutdownGracefully(boss, "boss");
-        log.info("Game server stopped");
+//        log.info("Game server stopped");
     }
 
     @Override

@@ -17,16 +17,26 @@ final class BannerPrinter {
     private BannerPrinter() {
     }
 
-    static void print() {
-        Holder.INSTANCE.printOnce();
+    static void print(
+            LocalDateTime startTime,
+            LocalDateTime endTime,
+            double consumeSeconds,
+            String clusterNodeSummary,
+            String nettyAddress,
+            String clusterAdminDashboardAddress) {
+        Holder.INSTANCE.printOnce(startTime, endTime, consumeSeconds, clusterNodeSummary, nettyAddress, clusterAdminDashboardAddress);
     }
 
-    private void printOnce() {
+    private void printOnce(
+            LocalDateTime startTime,
+            LocalDateTime endTime,
+            double consumeSeconds,
+            String clusterNodeSummary,
+            String nettyAddress,
+            String clusterAdminDashboardAddress) {
         if (!printed.compareAndSet(false, true)) {
             return;
         }
-        long startNanos = System.nanoTime();
-        LocalDateTime startTime = LocalDateTime.now();
 
         long pid = ProcessHandle.current().pid();
         String version = resolveVersion();
@@ -36,9 +46,6 @@ final class BannerPrinter {
         double usedMemoryMb = toMb(runtime.totalMemory() - runtime.freeMemory());
         double freeMemoryMb = toMb(runtime.freeMemory());
         double totalMemoryMb = toMb(runtime.totalMemory());
-
-        LocalDateTime endTime = LocalDateTime.now();
-        double consumeSeconds = (System.nanoTime() - startNanos) / 1_000_000_000.0d;
 
         StringBuilder builder = new StringBuilder();
         builder.append(System.lineSeparator());
@@ -58,6 +65,11 @@ final class BannerPrinter {
         builder.append(row(" pid", String.valueOf(pid), " used", formatMb(usedMemoryMb), " start", TIME_FORMAT.format(startTime)));
         builder.append(row(" version", version, " freeMemory", formatMb(freeMemoryMb), " end", TIME_FORMAT.format(endTime)));
         builder.append(row(" document", document, " totalMemory", formatMb(totalMemoryMb), " consume", String.format(Locale.ROOT, "%.2f s", consumeSeconds)));
+        builder.append(sep).append(System.lineSeparator());
+        builder.append("| startup-details").append(System.lineSeparator());
+        builder.append("| ").append(nonBlank(clusterNodeSummary)).append(System.lineSeparator());
+        builder.append("| Netty address: ").append(nonBlank(nettyAddress)).append(System.lineSeparator());
+        builder.append("| Cluster admin dashboard: ").append(nonBlank(clusterAdminDashboardAddress)).append(System.lineSeparator());
         builder.append(sep).append(System.lineSeparator());
         System.out.print(builder);
     }
@@ -105,6 +117,10 @@ final class BannerPrinter {
 
     private static String formatMb(double value) {
         return String.format(Locale.ROOT, "%.1fMB", value);
+    }
+
+    private static String nonBlank(String value) {
+        return value == null || value.isBlank() ? "-" : value;
     }
 
     private static double toMb(long bytes) {

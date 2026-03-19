@@ -10,6 +10,7 @@ import com.game4j.starter.initializer.PluginInitializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Objects;
 import java.util.UUID;
@@ -31,6 +32,7 @@ public class GameBootstrap {
     private volatile NettyServer nettyServer;
     private volatile Thread shutdownHook;
     private volatile boolean started;
+    private volatile String clusterNodeSummary = "Cluster disabled by config";
 
     public GameBootstrap(String scanPackage) {
         this.config = ServerConfig.load(scanPackage);
@@ -44,6 +46,8 @@ public class GameBootstrap {
      * 启动服务器
      */
     public void start() {
+        long startNanos = System.nanoTime();
+        LocalDateTime startTime = LocalDateTime.now();
         synchronized (lifecycleLock) {
             if (started) {
                 log.warn("Game server already started");
@@ -51,8 +55,7 @@ public class GameBootstrap {
             }
         }
         try {
-            BannerPrinter.print();
-            log.info("Game Server Starting...");
+//            log.info("Game Server Starting...");
             initPlugin();
             initController();
             startNetty();
@@ -61,7 +64,17 @@ public class GameBootstrap {
             synchronized (lifecycleLock) {
                 started = true;
             }
-            log.info("Game Server Started");
+            LocalDateTime endTime = LocalDateTime.now();
+            double consumeSeconds = (System.nanoTime() - startNanos) / 1_000_000_000.0d;
+            BannerPrinter.print(
+                    startTime,
+                    endTime,
+                    consumeSeconds,
+                    clusterNodeSummary,
+                    buildNettyAddress(),
+                    buildDashboardAddress()
+            );
+//            log.info("Game Server Started");
         } catch (Exception e) {
             stopInternal();
             throw new RuntimeException(e);
@@ -97,6 +110,7 @@ public class GameBootstrap {
 
     private void startClusterNode() {
         if (!config.isClusterEnabled()) {
+            clusterNodeSummary = "Cluster disabled by config";
             log.info("Cluster disabled by config");
             return;
         }
@@ -142,6 +156,14 @@ public class GameBootstrap {
         }
         log.info(
                 "Cluster node started, nodeId={}, role={}, hazelcastPort={}, grpcPort={}, seeds={}",
+                node.getNodeId(),
+                node.getNodeType(),
+                node.getPort(),
+                node.getGrpcPort(),
+                Objects.toString(clusterConfig.getSeedMembers())
+        );
+        clusterNodeSummary = String.format(
+                "Cluster node started, nodeId=%s, role=%s, hazelcastPort=%d, grpcPort=%d, seeds=%s",
                 node.getNodeId(),
                 node.getNodeType(),
                 node.getPort(),
@@ -210,5 +232,22 @@ public class GameBootstrap {
     private boolean isHazelcastClassMissing(NoClassDefFoundError err) {
         String msg = err.getMessage();
         return msg != null && msg.startsWith("com/hazelcast/");
+    }
+
+    private String buildNettyAddress() {
+        NettyServer server = nettyServer;
+        int port = server != null ? server.localPort() : config.getPort();
+        String host = config.getClusterHost();
+        if (host == null || host.isBlank()) {
+            host = "127.0.0.1";
+        }
+        return "tcp://" + host + ":" + port;
+    }
+
+    private String buildDashboardAddress() {
+        if (!config.isAdminEnabled()) {
+            return "disabled";
+        }
+        return "http://" + config.getAdminHost() + ":" + config.getAdminPort() + "/admin/cluster";
     }
 }

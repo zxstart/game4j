@@ -70,11 +70,14 @@ final class BannerPrinter {
     }
 
     private static void appendLogo(StringBuilder builder) {
-        builder.append(color("   ____      _ __  __   ___   _  _ ", ANSI_CYAN)).append(System.lineSeparator());
-        builder.append(color("  / ___|__ _| |  \\/  | / _ \\ | || |", ANSI_CYAN)).append(System.lineSeparator());
-        builder.append(color(" | |  _/ _` | | |\\/| || | | || || |_", ANSI_CYAN)).append(System.lineSeparator());
-        builder.append(color(" | |_| | (_| | | |  | || |_| ||__   _|", ANSI_CYAN)).append(System.lineSeparator());
-        builder.append(color("  \\____|\\__,_|_|_|  |_| \\___/    |_|", ANSI_CYAN)).append(System.lineSeparator());
+        String ln = System.lineSeparator();
+
+        builder.append(color("   ██████╗  █████╗ ███╗   ███╗███████╗██╗  ██╗     ██╗", ANSI_CYAN)).append(ln);
+        builder.append(color("  ██╔════╝ ██╔══██╗████╗ ████║██╔════╝██║  ██║     ██║", ANSI_CYAN)).append(ln);
+        builder.append(color("  ██║  ███╗███████║██╔████╔██║█████╗  ███████║     ██║", ANSI_CYAN)).append(ln);
+        builder.append(color("  ██║   ██║██╔══██║██║╚██╔╝██║██╔══╝  ╚════██║██   ██║", ANSI_CYAN)).append(ln);
+        builder.append(color("  ╚██████╔╝██║  ██║██║ ╚═╝ ██║███████╗     ██║╚█████╔╝", ANSI_CYAN)).append(ln);
+        builder.append(color("   ╚═════╝ ╚═╝  ╚═╝╚═╝     ╚═╝╚══════╝     ╚═╝ ╚════╝ ", ANSI_CYAN)).append(ln);
     }
 
     private static String row(

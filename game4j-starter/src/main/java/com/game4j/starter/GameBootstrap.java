@@ -102,7 +102,7 @@ public class GameBootstrap {
     }
 
     private void startNetty() throws Exception {
-        log.info("Starting Netty...");
+//        log.info("Starting Netty...");
         NettyServer server = new NettyServer();
         server.start(config.getPort());
         this.nettyServer = server;

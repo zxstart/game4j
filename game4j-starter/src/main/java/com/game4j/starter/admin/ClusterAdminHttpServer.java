@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.management.*;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URLDecoder;
@@ -17,21 +18,9 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
-import java.lang.management.ClassLoadingMXBean;
-import java.lang.management.GarbageCollectorMXBean;
-import java.lang.management.ManagementFactory;
-import java.lang.management.MemoryMXBean;
-import java.lang.management.MemoryPoolMXBean;
-import java.lang.management.MemoryUsage;
-import java.lang.management.RuntimeMXBean;
-import java.lang.management.ThreadMXBean;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.Executors;
 
 /**
@@ -74,7 +63,7 @@ public class ClusterAdminHttpServer {
             server.createContext("/", exchange -> writePlain(exchange, 404, "Not Found"));
             server.setExecutor(Executors.newVirtualThreadPerTaskExecutor());
             server.start();
-            log.info("Cluster admin dashboard started at http://{}:{}/admin/cluster", config.getAdminHost(), config.getAdminPort());
+//            log.info("Cluster admin dashboard started at http://{}:{}/admin/cluster", config.getAdminHost(), config.getAdminPort());
         } catch (IOException ex) {
             throw new IllegalStateException("Start cluster admin dashboard failed", ex);
         }

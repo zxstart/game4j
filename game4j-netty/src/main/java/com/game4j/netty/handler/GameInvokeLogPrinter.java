@@ -16,7 +16,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * </p>
  */
 public final class GameInvokeLogPrinter {
-    private static final Logger log = LoggerFactory.getLogger(GameChannelHandler.class);
+    private static final Logger log = LoggerFactory.getLogger(GameInvokeLogPrinter.class);
     private static final AtomicLong TRACE_ID_SEQ = new AtomicLong(System.currentTimeMillis() * 1000L);
     private static final String SERVER_NAME = "xxx";
     private static final String VERSION = "ioGameVersion";
@@ -30,12 +30,12 @@ public final class GameInvokeLogPrinter {
 
     public static void logRouteNotFound(ChannelHandlerContext ctx, GameMessage msg, long startNano, long traceId) {
         log.warn("""
-                ┏━━━━━ Debug. [RouteNotFound.here] ━━━━━ [cmd:{}] ━━━━━ [{}逻辑服 - id:[{}]
-                ┣ 参数: bodyLength : {}
-                ┣ 响应: route not found
-                ┣ 时间: {} ms (业务方法总耗时)
-                ┗━━━━━ [{}] ━━━━━ [线程:{}] ━━━━━━━ [traceId:{}] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-                """,
+                        ┏━━━━━ Debug. [RouteNotFound.here] ━━━━━ [cmd:{}] ━━━━━ [{}逻辑服 - id:[{}]
+                        ┣ 参数: bodyLength : {}
+                        ┣ 响应: route not found
+                        ┣ 时间: {} ms (业务方法总耗时)
+                        ┗━━━━━ [{}] ━━━━━ [线程:{}] ━━━━━━━ [traceId:{}] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                        """,
                 formatCmd(msg.cmd()),
                 SERVER_NAME,
                 ctx.channel().id().asShortText(),
@@ -52,13 +52,13 @@ public final class GameInvokeLogPrinter {
                                       long startNano,
                                       long traceId) {
         log.info("""
-                ┏━━━━━ Debug. [({}.java).{}] ━━━━━ [cmd:{}] ━━━━━ [{}逻辑服 - id:[{}]
-                ┣ userId: {}
-                ┣ 参数: message : {}
-                ┣ 响应: {}
-                ┣ 时间: {} ms (业务方法总耗时)
-                ┗━━━━━ [{}] ━━━━━ [线程:{}] ━━━━━━━ [traceId:{}] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-                """,
+                        ┏━━━━━ Debug. [({}.java).{}] ━━━━━ [cmd:{}] ━━━━━ [{}逻辑服 - id:[{}]
+                        ┣ userId: {}
+                        ┣ 参数: message : {}
+                        ┣ 响应: {}
+                        ┣ 时间: {} ms (业务方法总耗时)
+                        ┗━━━━━ [{}] ━━━━━ [线程:{}] ━━━━━━━ [traceId:{}] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                        """,
                 route.getController().getClass().getSimpleName(),
                 "here",
                 formatCmd(route.getCmd()),

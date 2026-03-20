@@ -1,5 +1,6 @@
 package com.game4j.starter.config;
 
+import com.game4j.core.config.ConfigFileLoader;
 import lombok.Setter;
 
 import java.util.ArrayList;

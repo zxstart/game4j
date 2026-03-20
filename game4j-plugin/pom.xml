@@ -12,7 +12,7 @@
     <artifactId>game4j-plugin</artifactId>
     <packaging>jar</packaging>
     <description>
-        插件 SPI
+        插件 SPI 与内置插件实现
     </description>
 
     <properties>
@@ -20,5 +20,25 @@
         <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.game4j</groupId>
+            <artifactId>game4j-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.game4j</groupId>
+            <artifactId>game4j-cluster</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
 
 </project>

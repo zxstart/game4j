@@ -1,4 +1,4 @@
-package com.game4j.starter.admin;
+package com.game4j.plugin.admin;
 
 import com.game4j.cluster.ClusterManager;
 import com.game4j.cluster.hazelcast.ClusterNode;
@@ -10,7 +10,14 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.management.*;
+import java.lang.management.ClassLoadingMXBean;
+import java.lang.management.GarbageCollectorMXBean;
+import java.lang.management.ManagementFactory;
+import java.lang.management.MemoryMXBean;
+import java.lang.management.MemoryPoolMXBean;
+import java.lang.management.MemoryUsage;
+import java.lang.management.RuntimeMXBean;
+import java.lang.management.ThreadMXBean;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URLDecoder;
@@ -20,7 +27,11 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.Executors;
 
 /**
@@ -63,7 +74,8 @@ public class ClusterAdminHttpServer {
             server.createContext("/", exchange -> writePlain(exchange, 404, "Not Found"));
             server.setExecutor(Executors.newVirtualThreadPerTaskExecutor());
             server.start();
-//            log.info("Cluster admin dashboard started at http://{}:{}/admin/cluster", config.getAdminHost(), config.getAdminPort());
+            log.info("Cluster admin dashboard started at http://{}:{}/admin/cluster",
+                    config.getAdminHost(), config.getAdminPort());
         } catch (IOException ex) {
             throw new IllegalStateException("Start cluster admin dashboard failed", ex);
         }
@@ -435,18 +447,18 @@ public class ClusterAdminHttpServer {
         boolean underscore = false;
         for (int i = 0; i < raw.length(); i++) {
             char ch = Character.toLowerCase(raw.charAt(i));
-            if ((ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9')) {
+            if (Character.isLetterOrDigit(ch)) {
+                if (underscore) {
+                    sb.append('_');
+                    underscore = false;
+                }
                 sb.append(ch);
-                underscore = false;
-                continue;
-            }
-            if (!underscore) {
-                sb.append('_');
+            } else if (sb.length() > 0) {
                 underscore = true;
             }
         }
         String out = sb.toString();
-        while (out.endsWith("_")) {
+        if (out.endsWith("_")) {
             out = out.substring(0, out.length() - 1);
         }
         return out;

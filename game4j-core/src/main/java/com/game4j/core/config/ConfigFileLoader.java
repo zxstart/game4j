@@ -1,4 +1,4 @@
-package com.game4j.starter.config;
+package com.game4j.core.config;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -43,7 +43,6 @@ public final class ConfigFileLoader {
                 }
                 return props;
             } catch (IOException ignored) {
-                // 读取失败时使用默认值
             }
         }
         return props;

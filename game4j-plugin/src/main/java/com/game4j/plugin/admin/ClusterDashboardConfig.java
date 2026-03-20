@@ -1,6 +1,6 @@
-package com.game4j.starter.admin;
+package com.game4j.plugin.admin;
 
-import com.game4j.starter.config.ConfigFileLoader;
+import com.game4j.core.config.ConfigFileLoader;
 import lombok.Getter;
 
 import java.util.Properties;

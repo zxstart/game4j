@@ -5,11 +5,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Deque;
-import java.util.List;
-import java.util.Properties;
+import java.util.*;
 
 /**
  * 统一配置文件加载器。
@@ -65,8 +61,8 @@ public final class ConfigFileLoader {
                 int indent = countLeadingSpaces(noComment);
                 String trimmed = noComment.trim();
 
-                while (!path.isEmpty() && indent <= path.get(path.size() - 1).indent) {
-                    path.remove(path.size() - 1);
+                while (!path.isEmpty() && indent <= path.getLast().indent) {
+                    path.removeLast();
                 }
 
                 if (trimmed.startsWith("- ")) {
@@ -165,13 +161,6 @@ public final class ConfigFileLoader {
         out.setProperty(key, existing + "," + value);
     }
 
-    private static final class PathNode {
-        private final int indent;
-        private final String key;
-
-        private PathNode(int indent, String key) {
-            this.indent = indent;
-            this.key = key;
-        }
+    private record PathNode(int indent, String key) {
     }
 }

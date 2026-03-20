@@ -10,7 +10,8 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.MultiThreadIoEventLoopGroup;
 import io.netty.channel.nio.NioIoHandler;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.TimeUnit;
 
@@ -20,8 +21,9 @@ import java.util.concurrent.TimeUnit;
  * 负责启动 Netty 服务，配置 ChannelPipeline。
  * </p>
  */
-@Slf4j
 public class NettyServer implements AutoCloseable {
+    private static final Logger log = LoggerFactory.getLogger(NettyServer.class);
+
     private final Object lifecycleLock = new Object();
     private volatile EventLoopGroup bossGroup;
     private volatile EventLoopGroup workerGroup;

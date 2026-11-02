@@ -2,17 +2,13 @@ package com.game4j.cluster.gossip.proto;
 
 import com.baidu.bjf.remoting.protobuf.FieldType;
 import com.baidu.bjf.remoting.protobuf.annotation.Protobuf;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
 import java.io.Serializable;
+import java.util.Objects;
 
 /**
  * 节点摘要信息
  * 用于 Gossip 协议中传递节点的基本信息，包含节点 ID、类型、地址和端口等
  */
-@Data
-@NoArgsConstructor
 public class NodeDigest implements Serializable {
     /**
      * 节点唯一标识符
@@ -50,4 +46,83 @@ public class NodeDigest implements Serializable {
      */
     @Protobuf(order = 6, required = true, fieldType = FieldType.INT64)
     private long lastUpdated;
+
+    public String getNodeId() {
+        return nodeId;
+    }
+
+    public void setNodeId(String nodeId) {
+        this.nodeId = nodeId;
+    }
+
+    public String getNodeType() {
+        return nodeType;
+    }
+
+    public void setNodeType(String nodeType) {
+        this.nodeType = nodeType;
+    }
+
+    public String getHost() {
+        return host;
+    }
+
+    public void setHost(String host) {
+        this.host = host;
+    }
+
+    public int getPort() {
+        return port;
+    }
+
+    public void setPort(int port) {
+        this.port = port;
+    }
+
+    public int getGrpcPort() {
+        return grpcPort;
+    }
+
+    public void setGrpcPort(int grpcPort) {
+        this.grpcPort = grpcPort;
+    }
+
+    public long getLastUpdated() {
+        return lastUpdated;
+    }
+
+    public void setLastUpdated(long lastUpdated) {
+        this.lastUpdated = lastUpdated;
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        if (this == other) {
+            return true;
+        }
+        if (!(other instanceof NodeDigest that)) {
+            return false;
+        }
+        return port == that.port
+                && grpcPort == that.grpcPort
+                && lastUpdated == that.lastUpdated
+                && Objects.equals(nodeId, that.nodeId)
+                && Objects.equals(nodeType, that.nodeType)
+                && Objects.equals(host, that.host);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(nodeId, nodeType, host, port, grpcPort, lastUpdated);
+    }
+
+    @Override
+    public String toString() {
+        return "NodeDigest[nodeId=" + nodeId
+                + ", nodeType=" + nodeType
+                + ", host=" + host
+                + ", port=" + port
+                + ", grpcPort=" + grpcPort
+                + ", lastUpdated=" + lastUpdated + "]";
+    }
 }

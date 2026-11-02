@@ -53,10 +53,6 @@
             background-color: rgba(30, 41, 59, 0.4);
         }
 
-        html.dark #nodesBody tr.node-selected {
-            background-color: rgba(30, 64, 175, 0.35);
-        }
-
         html.dark #themeToggleBtn {
             border-color: #334155;
             background-color: #0f172a;
@@ -120,51 +116,6 @@
         </div>
     </section>
 
-    <section class="dashboard-card rounded-xl bg-white border border-slate-200 overflow-hidden dark:bg-slate-900 dark:border-slate-800 mt-6">
-        <div class="px-4 py-3 border-b border-slate-200 dark:border-slate-800 font-medium flex items-center justify-between gap-2">
-            <span>节点 JVM 信息</span>
-            <span id="jvmNodeTitle" class="text-xs text-slate-500 dark:text-slate-400 break-all">-</span>
-        </div>
-        <div id="jvmSummaryGrid" class="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
-            <div class="text-slate-500 dark:text-slate-400">点击上方节点查看 JVM 信息</div>
-        </div>
-        <div class="px-4 pb-4">
-            <div class="text-xs text-slate-500 dark:text-slate-400 mb-2">Memory 明细</div>
-            <div class="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-lg">
-                <table class="min-w-full text-xs">
-                    <thead class="dashboard-table-head bg-slate-100 text-slate-600 dark:bg-slate-800/60 dark:text-slate-300">
-                    <tr>
-                        <th class="text-left px-3 py-2">Memory</th>
-                        <th class="text-left px-3 py-2">used</th>
-                        <th class="text-left px-3 py-2">total</th>
-                        <th class="text-left px-3 py-2">max</th>
-                        <th class="text-left px-3 py-2">usage</th>
-                        <th class="text-left px-3 py-2">GC</th>
-                    </tr>
-                    </thead>
-                    <tbody id="jvmMemoryBody" class="divide-y divide-slate-200 dark:divide-slate-800"></tbody>
-                </table>
-            </div>
-        </div>
-        <div class="px-4 pb-4">
-            <div class="text-xs text-slate-500 dark:text-slate-400 mb-2">GC 详情</div>
-            <div class="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-lg">
-                <table class="min-w-full text-xs">
-                    <thead class="dashboard-table-head bg-slate-100 text-slate-600 dark:bg-slate-800/60 dark:text-slate-300">
-                    <tr>
-                        <th class="text-left px-3 py-2">name</th>
-                        <th class="text-left px-3 py-2">group</th>
-                        <th class="text-left px-3 py-2">count</th>
-                        <th class="text-left px-3 py-2">time(ms)</th>
-                    </tr>
-                    </thead>
-                    <tbody id="jvmGcBody" class="divide-y divide-slate-200 dark:divide-slate-800"></tbody>
-                </table>
-            </div>
-        </div>
-    </section>
-
-    <p id="jvmErrorBox" class="hidden mt-4 rounded border border-red-700 bg-red-900/30 text-red-300 px-4 py-3 text-sm"></p>
     <p id="errorBox" class="hidden mt-4 rounded border border-red-700 bg-red-900/30 text-red-300 px-4 py-3 text-sm"></p>
 </main>
 
@@ -174,15 +125,9 @@
     const localNodeIdEl = document.getElementById("localNodeId");
     const lastRefreshEl = document.getElementById("lastRefresh");
     const nodesBodyEl = document.getElementById("nodesBody");
-    const jvmNodeTitleEl = document.getElementById("jvmNodeTitle");
-    const jvmSummaryGridEl = document.getElementById("jvmSummaryGrid");
-    const jvmMemoryBodyEl = document.getElementById("jvmMemoryBody");
-    const jvmGcBodyEl = document.getElementById("jvmGcBody");
-    const jvmErrorBoxEl = document.getElementById("jvmErrorBox");
     const errorBoxEl = document.getElementById("errorBox");
     const themeToggleBtn = document.getElementById("themeToggleBtn");
     const themeToggleIcon = document.getElementById("themeToggleIcon");
-    let selectedNodeId = null;
 
     function renderThemeIcon(iconName) {
         if (!themeToggleIcon) {
@@ -224,16 +169,6 @@
         errorBoxEl.textContent = message;
     }
 
-    function setJvmError(message) {
-        if (!message) {
-            jvmErrorBoxEl.classList.add("hidden");
-            jvmErrorBoxEl.textContent = "";
-            return;
-        }
-        jvmErrorBoxEl.classList.remove("hidden");
-        jvmErrorBoxEl.textContent = message;
-    }
-
     function safe(value) {
         if (value === null || value === undefined || value === "") {
             return "-";
@@ -260,11 +195,8 @@
             const localBadge = node.local
                 ? '<span class="inline-flex px-2 py-0.5 rounded bg-emerald-900 text-emerald-300 text-xs">YES</span>'
                 : '<span class="inline-flex px-2 py-0.5 rounded bg-slate-200 text-slate-700 text-xs dark:bg-slate-700 dark:text-slate-300">NO</span>';
-            const nodeId = safe(node.nodeId);
-            const isSelected = selectedNodeId && selectedNodeId === nodeId;
-            const selectedClass = isSelected ? " node-selected bg-blue-100 dark:bg-blue-900/40" : "";
             return `
-            <tr class="hover:bg-slate-100 dark:hover:bg-slate-800/40 cursor-pointer${selectedClass}" data-node-id="${escapeHtml(nodeId)}">
+            <tr class="hover:bg-slate-100 dark:hover:bg-slate-800/40">
                 <td class="px-4 py-3 break-all">${escapeHtml(node.nodeId)}</td>
                 <td class="px-4 py-3">${escapeHtml(node.nodeType)}</td>
                 <td class="px-4 py-3">${escapeHtml(node.host)}</td>
@@ -274,176 +206,6 @@
             </tr>`;
         }).join("");
 
-        nodesBodyEl.innerHTML = rows;
-        nodesBodyEl.querySelectorAll("tr[data-node-id]").forEach((row) => {
-            row.addEventListener("click", () => {
-                const nodeId = row.getAttribute("data-node-id");
-                if (!nodeId) {
-                    return;
-                }
-                loadJvmByNodeId(nodeId);
-            });
-        });
-    }
-
-    function formatBytes(bytes) {
-        if (typeof bytes !== "number" || !Number.isFinite(bytes) || bytes < 0) {
-            return "-";
-        }
-        if (bytes === 0) {
-            return "0 B";
-        }
-        const units = ["B", "KB", "MB", "GB", "TB"];
-        const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
-        const value = bytes / (1024 ** index);
-        return `${value.toFixed(value >= 10 ? 1 : 2)} ${units[index]}`;
-    }
-
-    function formatDuration(ms) {
-        if (typeof ms !== "number" || !Number.isFinite(ms) || ms < 0) {
-            return "-";
-        }
-        const sec = Math.floor(ms / 1000);
-        const day = Math.floor(sec / 86400);
-        const hour = Math.floor((sec % 86400) / 3600);
-        const minute = Math.floor((sec % 3600) / 60);
-        const second = sec % 60;
-        return `${day}d ${hour}h ${minute}m ${second}s`;
-    }
-
-    function formatPercent(value) {
-        if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
-            return "-";
-        }
-        return `${(value * 100).toFixed(1)}%`;
-    }
-
-    function formatDateTime(value) {
-        if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
-            return "-";
-        }
-        return new Date(value).toLocaleString();
-    }
-
-    function jvmStatCard(label, value) {
-        return `<div class="rounded border border-slate-200 dark:border-slate-800 p-3 bg-slate-50 dark:bg-slate-900/40">
-            <div class="text-xs text-slate-500 dark:text-slate-400">${escapeHtml(label)}</div>
-            <div class="mt-1 font-medium break-all">${escapeHtml(value)}</div>
-        </div>`;
-    }
-
-    function toMegabytes(value) {
-        if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
-            return "-";
-        }
-        const kb = 1024;
-        const mb = kb * 1024;
-        if (value < mb) {
-            return `${(value / kb).toFixed(0)}K`;
-        }
-        return `${(value / mb).toFixed(0)}M`;
-    }
-
-    function usagePercent(value) {
-        if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
-            return "-";
-        }
-        return `${(value * 100).toFixed(2)}%`;
-    }
-
-    function renderMemoryRows(memoryAreas) {
-        if (!Array.isArray(memoryAreas) || memoryAreas.length === 0) {
-            jvmMemoryBodyEl.innerHTML = '<tr><td colspan="6" class="px-3 py-3 text-slate-500 dark:text-slate-400">无内存池数据</td></tr>';
-            return;
-        }
-        const rows = memoryAreas.map((area) => {
-            const gcLabel = area.gcKey && area.gcKey !== "-"
-                ? `${safe(area.gcKey)}.count=${safe(area.gcCount)} / time(ms)=${safe(area.gcTimeMs)}`
-                : "-";
-            return `<tr>
-                <td class="px-3 py-2 break-all">${escapeHtml(area.name)}</td>
-                <td class="px-3 py-2">${escapeHtml(toMegabytes(area.used))}</td>
-                <td class="px-3 py-2">${escapeHtml(toMegabytes(area.committed))}</td>
-                <td class="px-3 py-2">${escapeHtml(toMegabytes(area.max))}</td>
-                <td class="px-3 py-2">${escapeHtml(usagePercent(area.usageRate))}</td>
-                <td class="px-3 py-2 break-all">${escapeHtml(gcLabel)}</td>
-            </tr>`;
-        }).join("");
-        jvmMemoryBodyEl.innerHTML = rows;
-    }
-
-    function renderGcRows(gcCollectors) {
-        if (!Array.isArray(gcCollectors) || gcCollectors.length === 0) {
-            jvmGcBodyEl.innerHTML = '<tr><td colspan="4" class="px-3 py-3 text-slate-500 dark:text-slate-400">无 GC 数据</td></tr>';
-            return;
-        }
-        const rows = gcCollectors.map((gc) => {
-            return `<tr>
-                <td class="px-3 py-2 break-all">${escapeHtml(gc.key || gc.name)}</td>
-                <td class="px-3 py-2">${escapeHtml(gc.group)}</td>
-                <td class="px-3 py-2">${escapeHtml(gc.count)}</td>
-                <td class="px-3 py-2">${escapeHtml(gc.timeMs)}</td>
-            </tr>`;
-        }).join("");
-        jvmGcBodyEl.innerHTML = rows;
-    }
-
-    function renderJvm(data) {
-        const source = safe(data.source);
-        const nodeLabel = safe(data.nodeId);
-        const host = safe(data.host);
-        const jvm = data.jvm || {};
-        const cards = [
-            jvmStatCard("数据来源", source),
-            jvmStatCard("节点 ID", nodeLabel),
-            jvmStatCard("Host", host),
-            jvmStatCard("采集时间", safe(data.timestamp)),
-            jvmStatCard("Java 版本", safe(jvm.javaVersion)),
-            jvmStatCard("JVM", `${safe(jvm.name)} / ${safe(jvm.version)}`),
-            jvmStatCard("启动时间", formatDateTime(jvm.startTimeMs)),
-            jvmStatCard("运行时长", formatDuration(jvm.uptimeMs)),
-            jvmStatCard("Heap Used", formatBytes(jvm.heapUsed)),
-            jvmStatCard("Heap Committed", formatBytes(jvm.heapCommitted)),
-            jvmStatCard("Heap Max", formatBytes(jvm.heapMax)),
-            jvmStatCard("Non-Heap Used", formatBytes(jvm.nonHeapUsed)),
-            jvmStatCard("线程数", safe(jvm.threadCount)),
-            jvmStatCard("Daemon 线程", safe(jvm.daemonThreadCount)),
-            jvmStatCard("已加载类", safe(jvm.loadedClassCount)),
-            jvmStatCard("CPU(进程/系统)", `${formatPercent(jvm.processCpuLoad)} / ${formatPercent(jvm.systemCpuLoad)}`)
-        ];
-        jvmNodeTitleEl.textContent = `${nodeLabel} @ ${host}`;
-        jvmSummaryGridEl.innerHTML = cards.join("");
-        renderMemoryRows(jvm.memoryAreas || []);
-        renderGcRows(jvm.gcCollectors || []);
-    }
-
-    async function loadJvmByNodeId(nodeId) {
-        selectedNodeId = nodeId;
-        try {
-            const response = await fetch(`/admin/cluster/api/jvm?nodeId=${encodeURIComponent(nodeId)}`, {cache: "no-store"});
-            if (!response.ok) {
-                throw new Error("HTTP " + response.status);
-            }
-            const data = await response.json();
-            if (!data.reachable) {
-                throw new Error(safe(data.error));
-            }
-            setJvmError("");
-            renderJvm(data);
-            refreshSelectedNodeStyle();
-        } catch (error) {
-            setJvmError(`获取节点 JVM 信息失败（${safe(nodeId)}）: ${error.message}`);
-        }
-    }
-
-    function refreshSelectedNodeStyle() {
-        nodesBodyEl.querySelectorAll("tr[data-node-id]").forEach((row) => {
-            const nodeId = row.getAttribute("data-node-id");
-            const selected = nodeId && selectedNodeId && nodeId === selectedNodeId;
-            row.classList.toggle("node-selected", selected);
-            row.classList.toggle("bg-blue-100", selected);
-            row.classList.toggle("dark:bg-blue-900/40", selected);
-        });
     }
 
     async function refresh() {
@@ -458,20 +220,7 @@
             nodeCountEl.textContent = safe(data.nodeCount);
             localNodeIdEl.textContent = safe(data.localNodeId);
             lastRefreshEl.textContent = new Date().toLocaleString();
-            const nodes = data.nodes || [];
-            const nodeIdSet = new Set(nodes.map((node) => safe(node.nodeId)));
-            if (!selectedNodeId || !nodeIdSet.has(selectedNodeId)) {
-                selectedNodeId = safe(data.localNodeId) !== "-" ? safe(data.localNodeId) : null;
-            }
-            renderNodes(nodes);
-            if (selectedNodeId) {
-                await loadJvmByNodeId(selectedNodeId);
-            } else {
-                jvmNodeTitleEl.textContent = "-";
-                jvmSummaryGridEl.innerHTML = '<div class="text-slate-500 dark:text-slate-400">暂无可用节点</div>';
-                jvmMemoryBodyEl.innerHTML = '<tr><td colspan="6" class="px-3 py-3 text-slate-500 dark:text-slate-400">暂无可用节点</td></tr>';
-                jvmGcBodyEl.innerHTML = '<tr><td colspan="4" class="px-3 py-3 text-slate-500 dark:text-slate-400">暂无可用节点</td></tr>';
-            }
+            renderNodes(data.nodes || []);
         } catch (error) {
             setError("获取集群数据失败: " + error.message);
         }

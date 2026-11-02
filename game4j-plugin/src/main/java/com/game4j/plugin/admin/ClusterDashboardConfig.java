@@ -1,7 +1,6 @@
 package com.game4j.plugin.admin;
 
 import com.game4j.core.config.ConfigFileLoader;
-import lombok.Getter;
 
 import java.util.Properties;
 
@@ -19,15 +18,10 @@ public class ClusterDashboardConfig {
 
     private boolean pluginEnabled = true;
     private boolean adminEnabled = true;
-    @Getter
     private String adminHost = "127.0.0.1";
-    @Getter
     private int adminPort = 18080;
-    @Getter
     private boolean clusterEnabled = true;
-    @Getter
     private String clusterName = "game4j-cluster";
-    @Getter
     private int serverPort = 9000;
 
     public static ClusterDashboardConfig load() {
@@ -60,6 +54,26 @@ public class ClusterDashboardConfig {
 
     public boolean isEnabled() {
         return pluginEnabled && adminEnabled;
+    }
+
+    public String getAdminHost() {
+        return adminHost;
+    }
+
+    public int getAdminPort() {
+        return adminPort;
+    }
+
+    public boolean isClusterEnabled() {
+        return clusterEnabled;
+    }
+
+    public String getClusterName() {
+        return clusterName;
+    }
+
+    public int getServerPort() {
+        return serverPort;
     }
 
     private interface StringConsumer {

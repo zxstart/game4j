@@ -10,19 +10,23 @@ import com.hazelcast.cluster.Cluster;
 import com.hazelcast.cluster.Member;
 import com.hazelcast.cluster.MembershipEvent;
 import com.hazelcast.cluster.MembershipListener;
+import com.hazelcast.client.HazelcastClient;
+import com.hazelcast.client.config.ClientConfig;
+import com.hazelcast.client.config.ClientConnectionStrategyConfig;
 import com.hazelcast.config.Config;
 import com.hazelcast.config.JoinConfig;
 import com.hazelcast.config.NetworkConfig;
 import com.hazelcast.core.Hazelcast;
 import com.hazelcast.core.HazelcastInstance;
+import com.hazelcast.core.LifecycleEvent;
 import com.hazelcast.map.IMap;
 import io.grpc.Server;
 import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder;
-import lombok.Getter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
@@ -82,7 +86,6 @@ public class ClusterManager {
     /**
      * 本地节点信息
      */
-    @Getter
     private static ClusterNode localNode;
 
     private static final Random random = new Random();
@@ -95,6 +98,27 @@ public class ClusterManager {
      */
     public static void init(ClusterNode node) {
         init(node, ClusterConfig.defaults());
+    }
+
+    public static ClusterNode getLocalNode() {
+        return localNode;
+    }
+
+    /** Returns true once the local member, or a control-plane client, can access cluster metadata. */
+    public static boolean awaitReady(Duration timeout) {
+        long deadlineNanos = System.nanoTime() + timeout.toNanos();
+        while (!isClusterConnected()) {
+            if (System.nanoTime() >= deadlineNanos || Thread.currentThread().isInterrupted()) {
+                return false;
+            }
+            try {
+                Thread.sleep(25L);
+            } catch (InterruptedException ex) {
+                Thread.currentThread().interrupt();
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
@@ -133,14 +157,40 @@ public class ClusterManager {
                 "false"
         );
 
+        try {
+            if (config.isClientMode()) {
+                hazelcastInstance = startHazelcastClient(hazelcastLoggingType, hazelcastLoggingDetailsEnabled,
+                        hazelcastPhoneHomeEnabled, hazelcastDiagnosticsEnabled);
+            } else {
+                hazelcastInstance = startHazelcastMember(hazelcastLoggingType, hazelcastLoggingDetailsEnabled,
+                        hazelcastPhoneHomeEnabled, hazelcastDiagnosticsEnabled);
+            }
+            nodeMetaMap = hazelcastInstance.getMap(META_MAP_NAME);
+
+            bindMembershipListener(hazelcastInstance.getCluster());
+            bindClientConnectionListener();
+            upsertNode(localNode.toDigest());
+            startGossipRpcServer(localNode.getGrpcPort());
+            startGossipScheduler();
+        } catch (RuntimeException | Error ex) {
+            shutdown();
+            throw ex;
+        }
+
+        log.info(
+                "cluster initialized: nodeId={}, mode={}, hzPort={}, grpcPort={}, clusterName={}",
+                localNode.getNodeId(), config.getMode(), localNode.getPort(), localNode.getGrpcPort(), config.getClusterName()
+        );
+    }
+
+    private static HazelcastInstance startHazelcastMember(
+            String loggingType, String loggingDetailsEnabled, String phoneHomeEnabled, String diagnosticsEnabled) {
         Config hzConfig = new Config();
         hzConfig.setClusterName(config.getClusterName());
-        hzConfig.setProperty(HAZELCAST_LOGGING_TYPE_KEY, hazelcastLoggingType);
-        hzConfig.setProperty(HAZELCAST_LOGGING_DETAILS_ENABLED_KEY, hazelcastLoggingDetailsEnabled);
-        hzConfig.setProperty(HAZELCAST_PHONE_HOME_ENABLED_KEY, hazelcastPhoneHomeEnabled);
-        hzConfig.setProperty(HAZELCAST_DIAGNOSTICS_ENABLED_KEY, hazelcastDiagnosticsEnabled);
-
-        // 将节点业务信息写入 Hazelcast Member 的属性中
+        hzConfig.setProperty(HAZELCAST_LOGGING_TYPE_KEY, loggingType);
+        hzConfig.setProperty(HAZELCAST_LOGGING_DETAILS_ENABLED_KEY, loggingDetailsEnabled);
+        hzConfig.setProperty(HAZELCAST_PHONE_HOME_ENABLED_KEY, phoneHomeEnabled);
+        hzConfig.setProperty(HAZELCAST_DIAGNOSTICS_ENABLED_KEY, diagnosticsEnabled);
         hzConfig.getMemberAttributeConfig().setAttribute("nodeId", localNode.getNodeId());
         if (localNode.getNodeType() != null) {
             hzConfig.getMemberAttributeConfig().setAttribute("nodeType", localNode.getNodeType());
@@ -150,21 +200,26 @@ public class ClusterManager {
         }
         hzConfig.getMemberAttributeConfig().setAttribute("port", String.valueOf(localNode.getPort()));
         hzConfig.getMemberAttributeConfig().setAttribute("grpcPort", String.valueOf(localNode.getGrpcPort()));
-
         configureNetwork(hzConfig, config);
+        return Hazelcast.newHazelcastInstance(hzConfig);
+    }
 
-        hazelcastInstance = Hazelcast.newHazelcastInstance(hzConfig);
-        nodeMetaMap = hazelcastInstance.getMap(META_MAP_NAME);
-        upsertNode(localNode.toDigest());
-
-        bindMembershipListener(hazelcastInstance.getCluster());
-        startGossipRpcServer(localNode.getGrpcPort());
-        startGossipScheduler();
-
-        log.info(
-                "cluster initialized: nodeId={}, hzPort={}, grpcPort={}, clusterName={}",
-                localNode.getNodeId(), localNode.getPort(), localNode.getGrpcPort(), config.getClusterName()
-        );
+    private static HazelcastInstance startHazelcastClient(
+            String loggingType, String loggingDetailsEnabled, String phoneHomeEnabled, String diagnosticsEnabled) {
+        if (config.getSeedMembers().isEmpty()) {
+            throw new IllegalArgumentException("game4j.cluster.seed-members is required when game4j.cluster.mode=client");
+        }
+        ClientConfig clientConfig = new ClientConfig();
+        clientConfig.setClusterName(config.getClusterName());
+        clientConfig.setProperty(HAZELCAST_LOGGING_TYPE_KEY, loggingType);
+        clientConfig.setProperty(HAZELCAST_LOGGING_DETAILS_ENABLED_KEY, loggingDetailsEnabled);
+        clientConfig.setProperty(HAZELCAST_PHONE_HOME_ENABLED_KEY, phoneHomeEnabled);
+        clientConfig.setProperty(HAZELCAST_DIAGNOSTICS_ENABLED_KEY, diagnosticsEnabled);
+        clientConfig.getNetworkConfig().addAddress(config.getSeedMembers().toArray(String[]::new));
+        clientConfig.getConnectionStrategyConfig()
+                .setAsyncStart(true)
+                .setReconnectMode(ClientConnectionStrategyConfig.ReconnectMode.ASYNC);
+        return HazelcastClient.newHazelcastClient(clientConfig);
     }
 
     /**
@@ -178,16 +233,20 @@ public class ClusterManager {
             return new ArrayList<>();
         }
         Map<String, ClusterNode> merged = new HashMap<>();
-        for (Member member : hazelcastInstance.getCluster().getMembers()) {
-            ClusterNode node = memberToNode(member);
-            if (node.getNodeId() != null) {
-                merged.put(node.getNodeId(), node);
+        try {
+            for (Member member : hazelcastInstance.getCluster().getMembers()) {
+                ClusterNode node = memberToNode(member);
+                if (node.getNodeId() != null) {
+                    merged.put(node.getNodeId(), node);
+                }
             }
-        }
-        if (nodeMetaMap != null) {
-            for (NodeDigest digest : nodeMetaMap.values()) {
-                merged.put(digest.getNodeId(), ClusterNode.fromDigest(digest));
+            if (nodeMetaMap != null && isClusterConnected()) {
+                for (NodeDigest digest : nodeMetaMap.values()) {
+                    merged.put(digest.getNodeId(), ClusterNode.fromDigest(digest));
+                }
             }
+        } catch (RuntimeException ex) {
+            log.debug("Cluster metadata is temporarily unavailable: {}", ex.getMessage());
         }
         List<ClusterNode> nodes = new ArrayList<>(merged.values());
         nodes.sort(Comparator.comparing(ClusterNode::getNodeId, Comparator.nullsLast(String::compareTo)));
@@ -340,7 +399,7 @@ public class ClusterManager {
             @Override
             public void memberRemoved(MembershipEvent membershipEvent) {
                 String nodeId = membershipEvent.getMember().getAttribute("nodeId");
-                if (nodeId != null && nodeMetaMap != null) {
+                if (nodeId != null && nodeMetaMap != null && isClusterConnected()) {
                     nodeMetaMap.remove(nodeId);
                 }
                 log.info(
@@ -348,6 +407,19 @@ public class ClusterManager {
                         nodeId,
                         membershipEvent.getCluster().getMembers().size()
                 );
+            }
+        });
+    }
+
+    /** In client mode, publish metadata as soon as the async connection reaches the control plane. */
+    private static void bindClientConnectionListener() {
+        if (!config.isClientMode()) {
+            return;
+        }
+        hazelcastInstance.getLifecycleService().addLifecycleListener(event -> {
+            if (event.getState() == LifecycleEvent.LifecycleState.CLIENT_CONNECTED) {
+                upsertNode(localNode.toDigest());
+                log.info("Hazelcast control plane connected, nodeId={}", localNode.getNodeId());
             }
         });
     }
@@ -471,6 +543,9 @@ public class ClusterManager {
         if (incoming == null || incoming.getNodeId() == null || nodeMetaMap == null) {
             return;
         }
+        if (!isClusterConnected()) {
+            return;
+        }
         if (incoming.getLastUpdated() <= 0) {
             incoming.setLastUpdated(System.currentTimeMillis());
         }
@@ -480,6 +555,20 @@ public class ClusterManager {
             }
             return oldVal;
         });
+    }
+
+    private static boolean isClusterConnected() {
+        if (hazelcastInstance == null || !hazelcastInstance.getLifecycleService().isRunning()) {
+            return false;
+        }
+        if (!config.isClientMode()) {
+            return true;
+        }
+        try {
+            return !hazelcastInstance.getCluster().getMembers().isEmpty();
+        } catch (RuntimeException ignored) {
+            return false;
+        }
     }
 
     /**

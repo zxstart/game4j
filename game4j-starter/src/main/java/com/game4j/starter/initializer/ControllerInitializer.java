@@ -28,9 +28,9 @@ public class ControllerInitializer {
      *
      * @param basePackage 扫描的基础包名
      */
-    public static void init(String basePackage) {
+    public static int init(String basePackage, ControllerIndexMode indexMode) {
         try {
-            List<Class<?>> controllers = ControllerScanner.scan(basePackage);
+            List<Class<?>> controllers = resolveControllers(basePackage, indexMode);
             for (Class<?> clazz : controllers) {
                 Object controller = clazz.getDeclaredConstructor().newInstance();
                 // 注册到 Spring-like 上下文
@@ -39,9 +39,36 @@ public class ControllerInitializer {
                 registerRoutes(controller);
                 log.info("Controller loaded : {}", clazz.getName());
             }
+            return controllers.size();
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    /** Backwards-compatible automatic indexed lookup with scan fallback. */
+    public static int init(String basePackage) {
+        return init(basePackage, ControllerIndexMode.AUTO);
+    }
+
+    private static List<Class<?>> resolveControllers(String basePackage, ControllerIndexMode indexMode) {
+        ControllerScanner.IndexedControllers indexed = ControllerScanner.loadIndex(basePackage);
+        if (indexed.indexFound()) {
+            log.info("Loaded {} controllers from generated index", indexed.controllers().size());
+            return indexed.controllers();
+        }
+        if (indexMode == ControllerIndexMode.INDEXED) {
+            throw new IllegalStateException(
+                    "No generated controller index was found. Add game4j-processor to the annotation processor path "
+                            + "or use game4j.server.controller-index-mode=auto during migration."
+            );
+        }
+        if (indexMode == ControllerIndexMode.SCAN) {
+            log.info("Controller index disabled by configuration; scanning classpath");
+        } else {
+            log.warn("No generated controller index found; falling back to classpath scanning. "
+                    + "Use game4j-processor and controller-index-mode=indexed in production.");
+        }
+        return ControllerScanner.scan(basePackage);
     }
 
     /**

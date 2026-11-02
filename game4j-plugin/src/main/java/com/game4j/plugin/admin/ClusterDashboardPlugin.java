@@ -1,6 +1,7 @@
 package com.game4j.plugin.admin;
 
 import com.game4j.plugin.GamePlugin;
+import com.game4j.plugin.PluginStartupPhase;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,6 +20,11 @@ public class ClusterDashboardPlugin implements GamePlugin {
     @Override
     public int order() {
         return 100;
+    }
+
+    @Override
+    public PluginStartupPhase startupPhase() {
+        return PluginStartupPhase.POST_LISTENING;
     }
 
     @Override

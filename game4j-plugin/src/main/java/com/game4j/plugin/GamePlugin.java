@@ -23,6 +23,13 @@ public interface GamePlugin {
     }
 
     /**
+     * Defaults to CRITICAL for source compatibility. Non-essential plugins should opt into a later phase.
+     */
+    default PluginStartupPhase startupPhase() {
+        return PluginStartupPhase.CRITICAL;
+    }
+
+    /**
      * 插件是否启用（可按配置动态关闭）。
      */
     default boolean supports() {

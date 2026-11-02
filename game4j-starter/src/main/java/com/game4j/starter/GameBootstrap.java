@@ -7,6 +7,8 @@ import com.game4j.netty.server.NettyServer;
 import com.game4j.starter.config.ServerConfig;
 import com.game4j.starter.initializer.ControllerInitializer;
 import com.game4j.starter.initializer.PluginInitializer;
+import com.game4j.starter.spring.EnableGame4j;
+import com.game4j.plugin.PluginStartupPhase;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -14,6 +16,10 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Objects;
 import java.util.UUID;
+import java.time.Duration;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 游戏服务器启动引导类
@@ -29,9 +35,16 @@ public class GameBootstrap {
     private static final Logger log = LoggerFactory.getLogger(GameBootstrap.class);
     private final ServerConfig config;
     private final Object lifecycleLock = new Object();
+    private final PluginInitializer pluginInitializer = new PluginInitializer();
+    private final StartupMetrics startupMetrics = new StartupMetrics();
+    private final ExecutorService startupExecutor = java.util.concurrent.Executors.newSingleThreadExecutor(
+            Thread.ofPlatform().name("game4j-startup-", 0).factory());
     private volatile NettyServer nettyServer;
     private volatile Thread shutdownHook;
+    private volatile Future<?> asynchronousStartup;
     private volatile boolean started;
+    private volatile boolean clusterStartAttempted;
+    private volatile StartupState startupState = StartupState.NEW;
     private volatile String clusterNodeSummary = "Cluster disabled by config";
 
     public GameBootstrap(String scanPackage) {
@@ -43,29 +56,76 @@ public class GameBootstrap {
     }
 
     /**
+     * Starts Game4j for an {@link EnableGame4j}-annotated application class.
+     * <p>
+     * This is the standalone Java entry point. If no scan package is declared
+     * on the annotation, the package containing {@code applicationClass} is
+     * used as the controller scan root.
+     * </p>
+     *
+     * @param applicationClass class annotated with {@link EnableGame4j}
+     * @return the started bootstrap instance
+     */
+    public static GameBootstrap run(Class<?> applicationClass) {
+        Objects.requireNonNull(applicationClass, "applicationClass must not be null");
+        EnableGame4j enableGame4j = applicationClass.getAnnotation(EnableGame4j.class);
+        if (enableGame4j == null) {
+            throw new IllegalArgumentException(
+                    applicationClass.getName() + " must be annotated with @EnableGame4j"
+            );
+        }
+
+        String scanPackage = enableGame4j.scanBasePackage();
+        if (scanPackage == null || scanPackage.isBlank()) {
+            scanPackage = applicationClass.getPackageName();
+        }
+        if (scanPackage == null || scanPackage.isBlank()) {
+            throw new IllegalArgumentException(
+                    "@EnableGame4j requires the application class to be in a named package " +
+                            "or to declare scanBasePackage"
+            );
+        }
+
+        GameBootstrap bootstrap = new GameBootstrap(scanPackage.trim());
+        bootstrap.start();
+        return bootstrap;
+    }
+
+    /**
      * 启动服务器
      */
     public void start() {
-        long startNanos = System.nanoTime();
         LocalDateTime startTime = LocalDateTime.now();
         synchronized (lifecycleLock) {
             if (started) {
                 log.warn("Game server already started");
                 return;
             }
+            if (startupState == StartupState.STARTING || startupState == StartupState.CLUSTER_JOINING) {
+                log.warn("Game server startup already in progress");
+                return;
+            }
+            startupState = StartupState.STARTING;
         }
         try {
-//            log.info("Game Server Starting...");
-            initPlugin();
+            pluginInitializer.discover();
+            initCriticalPlugins();
+            startupMetrics.completed("critical-plugins");
             initController();
+            startupMetrics.completed("controllers");
             startNetty();
-            startClusterNode();
+            startupMetrics.completed("netty-listening");
             registerShutdownHook();
             synchronized (lifecycleLock) {
                 started = true;
+                startupState = StartupState.LISTENING;
+                clusterNodeSummary = config.isClusterEnabled()
+                        ? "Cluster joining asynchronously"
+                        : "Cluster disabled by config";
+                asynchronousStartup = startupExecutor.submit(this::continueStartup);
             }
             LocalDateTime endTime = LocalDateTime.now();
-            double consumeSeconds = (System.nanoTime() - startNanos) / 1_000_000_000.0d;
+            double consumeSeconds = startupMetrics.elapsedMillis() / 1_000.0d;
             BannerPrinter.print(
                     startTime,
                     endTime,
@@ -74,7 +134,8 @@ public class GameBootstrap {
                     buildNettyAddress(),
                     buildDashboardAddress()
             );
-//            log.info("Game Server Started");
+            log.info("Game server listening, clusterEnabled={}, timingsMs={}", config.isClusterEnabled(),
+                    startupMetrics.snapshotMillis());
         } catch (Exception e) {
             stopInternal();
             throw new RuntimeException(e);
@@ -89,16 +150,70 @@ public class GameBootstrap {
         stopInternal();
     }
 
-    private void initPlugin() {
-        log.info("Loading plugins...");
-        PluginInitializer.init();
+    /** Waits for full readiness. A false result means the node remains LISTENING or DEGRADED. */
+    public boolean awaitReady(Duration timeout) {
+        Future<?> future = asynchronousStartup;
+        if (future == null) {
+            return startupState == StartupState.READY;
+        }
+        try {
+            future.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
+        } catch (java.util.concurrent.TimeoutException ignored) {
+            return false;
+        } catch (Exception ignored) {
+            return false;
+        }
+        return startupState == StartupState.READY;
+    }
+
+    public StartupState getStartupState() {
+        return startupState;
+    }
+
+    public StartupMetrics getStartupMetrics() {
+        return startupMetrics;
+    }
+
+    private void initCriticalPlugins() {
+        log.info("Loading critical plugins...");
+        pluginInitializer.enable(PluginStartupPhase.CRITICAL);
     }
 
     private void initController() {
         log.info("Scanning controllers...");
         ControllerInitializer.init(
-                config.getScanPackage()
+                config.getScanPackage(),
+                config.getControllerIndexMode()
         );
+    }
+
+    private void continueStartup() {
+        try {
+            if (!started || startupState == StartupState.STOPPING || startupState == StartupState.STOPPED) {
+                return;
+            }
+            if (config.isClusterEnabled()) {
+                startupState = StartupState.CLUSTER_JOINING;
+                clusterNodeSummary = "Cluster joining asynchronously";
+                startClusterNode();
+                if (!ClusterManager.awaitReady(config.getClusterReadyTimeout())) {
+                    throw new IllegalStateException("Cluster was not ready within " + config.getClusterReadyTimeout());
+                }
+                startupMetrics.completed("cluster-ready");
+            }
+            pluginInitializer.enable(PluginStartupPhase.POST_LISTENING);
+            startupMetrics.completed("post-listening-plugins");
+            if (config.isClusterEnabled()) {
+                pluginInitializer.enable(PluginStartupPhase.CLUSTER_READY);
+                startupMetrics.completed("cluster-ready-plugins");
+            }
+            startupState = StartupState.READY;
+            log.info("Game server ready; timingsMs={}", startupMetrics.snapshotMillis());
+        } catch (Throwable ex) {
+            startupState = StartupState.DEGRADED;
+            clusterNodeSummary = "Cluster unavailable: " + ex.getClass().getSimpleName();
+            log.error("Background cluster startup failed; game server remains locally listening", ex);
+        }
     }
 
     private void startNetty() throws Exception {
@@ -133,8 +248,10 @@ public class GameBootstrap {
         clusterConfig.setHazelcastPort(config.getHazelcastPort());
         clusterConfig.setGrpcPort(config.getClusterGrpcPort());
         clusterConfig.setSeedMembers(new ArrayList<>(config.getSeedMembers()));
+        clusterConfig.setMode(config.getClusterMode());
 
         try {
+            clusterStartAttempted = true;
             ClusterManager.init(node, clusterConfig);
         } catch (NoClassDefFoundError err) {
             if (isGrpcClassMissing(err)) {
@@ -199,19 +316,22 @@ public class GameBootstrap {
 
     private void stopInternal() {
         synchronized (lifecycleLock) {
-            if (!started && nettyServer == null && !config.isClusterEnabled()) {
+            if (startupState == StartupState.STOPPED || startupState == StartupState.STOPPING) {
                 return;
             }
+            startupState = StartupState.STOPPING;
             started = false;
         }
 
-        if (config.isClusterEnabled()) {
+        if (clusterStartAttempted) {
             try {
                 ClusterManager.shutdown();
             } catch (Exception ex) {
                 log.warn("Shutdown cluster failed", ex);
             }
         }
+
+        pluginInitializer.stop();
 
         NettyServer server = nettyServer;
         nettyServer = null;
@@ -222,6 +342,13 @@ public class GameBootstrap {
                 log.warn("Shutdown netty server failed", ex);
             }
         }
+        Future<?> future = asynchronousStartup;
+        if (future != null) {
+            future.cancel(true);
+            asynchronousStartup = null;
+        }
+        startupExecutor.shutdownNow();
+        startupState = StartupState.STOPPED;
     }
 
     private boolean isGrpcClassMissing(NoClassDefFoundError err) {

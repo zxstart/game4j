@@ -19,7 +19,7 @@ public final class GameInvokeLogPrinter {
     private static final Logger log = LoggerFactory.getLogger(GameInvokeLogPrinter.class);
     private static final AtomicLong TRACE_ID_SEQ = new AtomicLong(System.currentTimeMillis() * 1000L);
     private static final String SERVER_NAME = "xxx";
-    private static final String VERSION = "ioGameVersion";
+    private static final String VERSION = "Game4j-1.0";
 
     private GameInvokeLogPrinter() {
     }

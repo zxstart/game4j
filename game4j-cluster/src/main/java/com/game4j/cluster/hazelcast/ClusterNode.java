@@ -1,19 +1,15 @@
 package com.game4j.cluster.hazelcast;
 
 import com.game4j.cluster.gossip.proto.NodeDigest;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
 import java.io.Serial;
 import java.io.Serializable;
+import java.util.Objects;
 
 /**
  * 集群节点信息
  * 表示集群中的一个节点，包含节点的基本信息和通信地址
  * 实现了 Serializable 接口，支持网络传输
  */
-@Data
-@NoArgsConstructor
 public class ClusterNode implements Serializable {
     @Serial
     private static final long serialVersionUID = 1L;
@@ -47,6 +43,9 @@ public class ClusterNode implements Serializable {
      * 用于节点间 Gossip 协议通信
      */
     private int grpcPort;
+
+    public ClusterNode() {
+    }
 
     /**
      * 构造集群节点
@@ -96,5 +95,74 @@ public class ClusterNode implements Serializable {
                 digest.getPort(),
                 digest.getGrpcPort()
         );
+    }
+
+    public String getNodeId() {
+        return nodeId;
+    }
+
+    public void setNodeId(String nodeId) {
+        this.nodeId = nodeId;
+    }
+
+    public String getNodeType() {
+        return nodeType;
+    }
+
+    public void setNodeType(String nodeType) {
+        this.nodeType = nodeType;
+    }
+
+    public String getHost() {
+        return host;
+    }
+
+    public void setHost(String host) {
+        this.host = host;
+    }
+
+    public int getPort() {
+        return port;
+    }
+
+    public void setPort(int port) {
+        this.port = port;
+    }
+
+    public int getGrpcPort() {
+        return grpcPort;
+    }
+
+    public void setGrpcPort(int grpcPort) {
+        this.grpcPort = grpcPort;
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        if (this == other) {
+            return true;
+        }
+        if (!(other instanceof ClusterNode that)) {
+            return false;
+        }
+        return port == that.port
+                && grpcPort == that.grpcPort
+                && Objects.equals(nodeId, that.nodeId)
+                && Objects.equals(nodeType, that.nodeType)
+                && Objects.equals(host, that.host);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(nodeId, nodeType, host, port, grpcPort);
+    }
+
+    @Override
+    public String toString() {
+        return "ClusterNode[nodeId=" + nodeId
+                + ", nodeType=" + nodeType
+                + ", host=" + host
+                + ", port=" + port
+                + ", grpcPort=" + grpcPort + "]";
     }
 }

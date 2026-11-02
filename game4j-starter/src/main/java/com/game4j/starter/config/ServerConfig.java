@@ -1,12 +1,13 @@
 package com.game4j.starter.config;
 
 import com.game4j.core.config.ConfigFileLoader;
-import lombok.Setter;
+import com.game4j.starter.initializer.ControllerIndexMode;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
+import java.time.Duration;
 
 /**
  * 服务器配置类
@@ -17,6 +18,7 @@ import java.util.Properties;
 public class ServerConfig {
     private static final String KEY_SERVER_PORT = "game4j.server.port";
     private static final String KEY_SERVER_SCAN_PACKAGE = "game4j.server.scan-package";
+    private static final String KEY_SERVER_CONTROLLER_INDEX_MODE = "game4j.server.controller-index-mode";
     private static final String KEY_CLUSTER_ENABLED = "game4j.cluster.enabled";
     private static final String KEY_CLUSTER_NAME = "game4j.cluster.name";
     private static final String KEY_CLUSTER_NODE_ID = "game4j.cluster.node-id";
@@ -25,6 +27,8 @@ public class ServerConfig {
     private static final String KEY_CLUSTER_HAZELCAST_PORT = "game4j.cluster.hazelcast-port";
     private static final String KEY_CLUSTER_GRPC_PORT = "game4j.cluster.grpc-port";
     private static final String KEY_CLUSTER_SEED_MEMBERS = "game4j.cluster.seed-members";
+    private static final String KEY_CLUSTER_MODE = "game4j.cluster.mode";
+    private static final String KEY_CLUSTER_READY_TIMEOUT_MS = "game4j.cluster.ready-timeout-ms";
     private static final String KEY_ADMIN_ENABLED = "game4j.admin.enabled";
     private static final String KEY_ADMIN_HOST = "game4j.admin.host";
     private static final String KEY_ADMIN_PORT = "game4j.admin.port";
@@ -38,6 +42,9 @@ public class ServerConfig {
      * 扫描包路径，用于自动发现控制器
      */
     private String scanPackage;
+
+    /** AUTO preserves upgrades; production should explicitly use INDEXED. */
+    private ControllerIndexMode controllerIndexMode = ControllerIndexMode.AUTO;
 
     /**
      * 是否启用集群
@@ -79,22 +86,24 @@ public class ServerConfig {
      */
     private List<String> seedMembers = new ArrayList<>();
 
+    /** MEMBER runs a full Hazelcast member; CLIENT joins a dedicated control plane. */
+    private String clusterMode = "member";
+
+    private Duration clusterReadyTimeout = Duration.ofSeconds(10);
+
     /**
      * 是否启用管理控制台（HTTP）
      */
-    @Setter
     private boolean adminEnabled = true;
 
     /**
      * 管理控制台监听地址
      */
-    @Setter
     private String adminHost = "127.0.0.1";
 
     /**
      * 管理控制台监听端口
      */
-    @Setter
     private int adminPort = 18080;
 
     public ServerConfig(String scanPackage) {
@@ -123,6 +132,14 @@ public class ServerConfig {
 
     public String getScanPackage() {
         return scanPackage;
+    }
+
+    public ControllerIndexMode getControllerIndexMode() {
+        return controllerIndexMode;
+    }
+
+    public void setControllerIndexMode(ControllerIndexMode controllerIndexMode) {
+        this.controllerIndexMode = controllerIndexMode != null ? controllerIndexMode : ControllerIndexMode.AUTO;
     }
 
     public void setPort(int port) {
@@ -197,12 +214,44 @@ public class ServerConfig {
         return adminEnabled;
     }
 
+    public String getClusterMode() {
+        return clusterMode;
+    }
+
+    public void setClusterMode(String clusterMode) {
+        if (clusterMode != null && !clusterMode.isBlank()) {
+            this.clusterMode = clusterMode.trim();
+        }
+    }
+
+    public Duration getClusterReadyTimeout() {
+        return clusterReadyTimeout;
+    }
+
+    public void setClusterReadyTimeout(Duration clusterReadyTimeout) {
+        if (clusterReadyTimeout != null && !clusterReadyTimeout.isNegative() && !clusterReadyTimeout.isZero()) {
+            this.clusterReadyTimeout = clusterReadyTimeout;
+        }
+    }
+
+    public void setAdminEnabled(boolean adminEnabled) {
+        this.adminEnabled = adminEnabled;
+    }
+
     public String getAdminHost() {
         return adminHost;
     }
 
+    public void setAdminHost(String adminHost) {
+        this.adminHost = adminHost;
+    }
+
     public int getAdminPort() {
         return adminPort;
+    }
+
+    public void setAdminPort(int adminPort) {
+        this.adminPort = adminPort;
     }
 
     private void applyProperties(Properties props) {
@@ -210,6 +259,8 @@ public class ServerConfig {
             return;
         }
         setIfPresent(props.getProperty(KEY_SERVER_SCAN_PACKAGE), this::setScanPackage);
+        setIfPresent(props.getProperty(KEY_SERVER_CONTROLLER_INDEX_MODE),
+                s -> setControllerIndexMode(ControllerIndexMode.parse(s, controllerIndexMode)));
         setIfPresent(props.getProperty(KEY_SERVER_PORT), s -> this.setPort(parseInt(s, this.port)));
         setIfPresent(props.getProperty(KEY_CLUSTER_ENABLED), s -> this.setClusterEnabled(Boolean.parseBoolean(s)));
         setIfPresent(props.getProperty(KEY_CLUSTER_NAME), this::setClusterName);
@@ -219,6 +270,9 @@ public class ServerConfig {
         setIfPresent(props.getProperty(KEY_CLUSTER_HAZELCAST_PORT), s -> this.setHazelcastPort(parseInt(s, this.hazelcastPort)));
         setIfPresent(props.getProperty(KEY_CLUSTER_GRPC_PORT), s -> this.setClusterGrpcPort(parseInt(s, this.clusterGrpcPort)));
         setIfPresent(props.getProperty(KEY_CLUSTER_SEED_MEMBERS), s -> this.setSeedMembers(parseCsv(s)));
+        setIfPresent(props.getProperty(KEY_CLUSTER_MODE), this::setClusterMode);
+        setIfPresent(props.getProperty(KEY_CLUSTER_READY_TIMEOUT_MS),
+                s -> setClusterReadyTimeout(Duration.ofMillis(parseLong(s, clusterReadyTimeout.toMillis()))));
         setIfPresent(props.getProperty(KEY_ADMIN_ENABLED), s -> this.setAdminEnabled(Boolean.parseBoolean(s)));
         setIfPresent(props.getProperty(KEY_ADMIN_HOST), this::setAdminHost);
         setIfPresent(props.getProperty(KEY_ADMIN_PORT), s -> this.setAdminPort(parseInt(s, this.adminPort)));
@@ -226,6 +280,8 @@ public class ServerConfig {
 
     private void applySystemProperties() {
         overrideIfPresent(KEY_SERVER_SCAN_PACKAGE, this::setScanPackage);
+        overrideIfPresent(KEY_SERVER_CONTROLLER_INDEX_MODE,
+                s -> setControllerIndexMode(ControllerIndexMode.parse(s, controllerIndexMode)));
         overrideIfPresent(KEY_SERVER_PORT, s -> this.setPort(parseInt(s, this.port)));
         overrideIfPresent(KEY_CLUSTER_ENABLED, s -> this.setClusterEnabled(Boolean.parseBoolean(s)));
         overrideIfPresent(KEY_CLUSTER_NAME, this::setClusterName);
@@ -235,6 +291,9 @@ public class ServerConfig {
         overrideIfPresent(KEY_CLUSTER_HAZELCAST_PORT, s -> this.setHazelcastPort(parseInt(s, this.hazelcastPort)));
         overrideIfPresent(KEY_CLUSTER_GRPC_PORT, s -> this.setClusterGrpcPort(parseInt(s, this.clusterGrpcPort)));
         overrideIfPresent(KEY_CLUSTER_SEED_MEMBERS, s -> this.setSeedMembers(parseCsv(s)));
+        overrideIfPresent(KEY_CLUSTER_MODE, this::setClusterMode);
+        overrideIfPresent(KEY_CLUSTER_READY_TIMEOUT_MS,
+                s -> setClusterReadyTimeout(Duration.ofMillis(parseLong(s, clusterReadyTimeout.toMillis()))));
         overrideIfPresent(KEY_ADMIN_ENABLED, s -> this.setAdminEnabled(Boolean.parseBoolean(s)));
         overrideIfPresent(KEY_ADMIN_HOST, this::setAdminHost);
         overrideIfPresent(KEY_ADMIN_PORT, s -> this.setAdminPort(parseInt(s, this.adminPort)));
@@ -261,6 +320,14 @@ public class ServerConfig {
     private static int parseInt(String raw, int fallback) {
         try {
             return Integer.parseInt(raw);
+        } catch (Exception ignored) {
+            return fallback;
+        }
+    }
+
+    private static long parseLong(String raw, long fallback) {
+        try {
+            return Long.parseLong(raw);
         } catch (Exception ignored) {
             return fallback;
         }

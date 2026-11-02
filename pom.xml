@@ -11,23 +11,25 @@
 
     <modules>
         <module>game4j-core</module>
+        <module>game4j-processor</module>
         <module>game4j-netty</module>
         <module>game4j-protocol</module>
         <module>game4j-cluster</module>
         <module>game4j-plugin</module>
         <module>game4j-starter</module>
+        <module>examples/game4j-plugin-example</module>
     </modules>
 
     <properties>
-        <maven.compiler.source>21</maven.compiler.source>
-        <maven.compiler.target>21</maven.compiler.target>
+        <maven.compiler.source>25</maven.compiler.source>
+        <maven.compiler.target>25</maven.compiler.target>
+        <maven.compiler.proc>full</maven.compiler.proc>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <java.version>21</java.version>
-        <netty.version>4.2.9.Final</netty.version>
+        <java.version>25</java.version>
+        <netty.version>4.2.17.Final</netty.version>
         <protobuf.version>4.34.0</protobuf.version>
         <classgraph.version>4.8.149</classgraph.version>
         <slf4j.version>2.0.17</slf4j.version>
-        <lombok.version>1.18.42</lombok.version>
         <logback.version>1.5.9</logback.version>
         <jprotobuf.version>2.4.23</jprotobuf.version>
         <grpc.version>1.76.0</grpc.version>
@@ -39,6 +41,11 @@
             <dependency>
                 <groupId>com.game4j</groupId>
                 <artifactId>game4j-core</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.game4j</groupId>
+                <artifactId>game4j-processor</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
@@ -61,6 +68,11 @@
                 <artifactId>game4j-plugin</artifactId>
                 <version>${project.version}</version>
             </dependency>
+            <dependency>
+                <groupId>com.game4j</groupId>
+                <artifactId>game4j-starter</artifactId>
+                <version>${project.version}</version>
+            </dependency>
             <!-- classpath 扫描 -->
             <dependency>
                 <groupId>io.github.classgraph</groupId>
@@ -79,13 +91,6 @@
                 <artifactId>logback-classic</artifactId>
                 <version>${logback.version}</version>
                 <scope>provided</scope>
-            </dependency>
-
-            <!-- lombok -->
-            <dependency>
-                <groupId>org.projectlombok</groupId>
-                <artifactId>lombok</artifactId>
-                <version>${lombok.version}</version>
             </dependency>
 
             <dependency>
